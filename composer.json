@@ -1,6 +1,7 @@
 {
     "name": "julienlinard/php-router",
     "description": "Un routeur PHP personnalisé",
+    "version": "1.0.0",
     "type": "library",
     "require": {
         "php": ">=8.0"
