@@ -1,0 +1,23 @@
+{
+    "name": "julienlinard/php-router",
+    "description": "Un routeur PHP personnalisé",
+    "type": "library",
+    "require": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "JulienLinard\\Router\\": "src/Router/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Julien Linard",
+            "email": "julien.linard.dev@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    }
+}
