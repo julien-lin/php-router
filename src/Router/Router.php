@@ -4,6 +4,10 @@ namespace JulienLinard\Router;
 
 use ReflectionClass;
 use JulienLinard\Router\Attributes\Route as RouteAttribute;
+use JulienLinard\Router\Request;
+use JulienLinard\Router\Response;
+use JulienLinard\Router\ErrorHandler;
+use JulienLinard\Router\Middleware;
 
 class Router
 {
@@ -288,7 +292,64 @@ class Router
       }
       
       $controller = new $controllerClass();
-      return $controller->$controllerMethod($request);
+      
+      // Préparer les arguments pour la méthode
+      $args = [];
+      $parameters = $methodReflection->getParameters();
+      
+      foreach ($parameters as $param) {
+        $paramName = $param->getName();
+        $paramType = $param->getType();
+        
+        // Si le paramètre est de type Request, passer l'objet Request
+        if ($paramType instanceof \ReflectionNamedType && $paramType->getName() === Request::class) {
+          $args[] = $request;
+        }
+        // Si c'est un paramètre de route, le récupérer depuis routeParams
+        elseif (isset($routeParams[$paramName])) {
+          $value = $routeParams[$paramName];
+          
+          // Convertir le type si nécessaire
+          if ($paramType instanceof \ReflectionNamedType) {
+            $typeName = $paramType->getName();
+            
+            if ($typeName === 'int') {
+              $args[] = (int)$value;
+            } elseif ($typeName === 'float') {
+              $args[] = (float)$value;
+            } elseif ($typeName === 'bool') {
+              $args[] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            } elseif ($typeName === 'string') {
+              $args[] = (string)$value;
+            } else {
+              // Type personnalisé, garder la valeur telle quelle
+              $args[] = $value;
+            }
+          } else {
+            // Pas de type ou union type, garder la valeur telle quelle
+            $args[] = $value;
+          }
+        }
+        // Si le paramètre a une valeur par défaut, utiliser cette valeur
+        elseif ($param->isDefaultValueAvailable()) {
+          $args[] = $param->getDefaultValue();
+        }
+        // Sinon, passer null (peut causer une erreur si le paramètre est requis)
+        else {
+          $args[] = null;
+        }
+      }
+      
+      // Appeler la méthode avec les arguments
+      $result = $methodReflection->invokeArgs($controller, $args);
+      
+      // Si la méthode retourne une Response, la retourner
+      if ($result instanceof Response) {
+        return $result;
+      }
+      
+      // Sinon, créer une réponse vide (le contrôleur a déjà envoyé la réponse via View ou redirect)
+      return new Response(200);
 
     } catch (\Throwable $e) {
       return ErrorHandler::handleServerError($e);
@@ -513,3 +574,14 @@ class Router
    * Middlewares actuels pour les groupes de routes
    */
   private array $currentGroupMiddlewares = [];
+
+  /**
+   * Exécute le router (méthode principale pour compatibilité avec l'ancien code)
+   */
+  public function run(): void
+  {
+    $request = new Request();
+    $response = $this->handle($request);
+    $response->send();
+  }
+}
