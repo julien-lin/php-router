@@ -1,4 +1,26 @@
+# Composer
+/vendor/
+/composer.lock
 
-vendor/
-composer.lock
+# IDE
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# PHPUnit
+# Note: phpunit.xml DOIT être versionné (configuration partagée)
+# Seuls les fichiers de cache sont ignorés
+/.phpunit.result.cache
+
+# Tests
+/coverage/
+/.phpunit.cache/
+
+# Logs
+*.log
