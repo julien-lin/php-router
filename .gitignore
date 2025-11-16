@@ -24,3 +24,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Documentation interne (garder seulement README.md)
+CODE_REVIEW.md
+COMPARAISON_MILADRAHIMI.md
+ANALYSE_*.md
+OPTIMISATIONS_*.md
+CHECKLIST_*.md

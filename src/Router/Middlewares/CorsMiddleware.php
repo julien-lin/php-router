@@ -38,21 +38,17 @@ class CorsMiddleware implements Middleware
   {
     $origin = $request->getHeader('origin', '');
     
-    // Vérifier si l'origine est autorisée
+    // Vérifier si l'origine est autorisée avec validation stricte
     if ($this->isOriginAllowed($origin)) {
-      // Utiliser Response pour définir les headers de manière sécurisée
-      $response = new Response();
-      $response->setHeader('Access-Control-Allow-Origin', $this->getAllowedOrigin($origin));
-      $response->setHeader('Access-Control-Allow-Methods', implode(', ', $this->allowedMethods));
-      $response->setHeader('Access-Control-Allow-Headers', implode(', ', $this->allowedHeaders));
+      $allowedOrigin = $this->getAllowedOrigin($origin);
+      
+      // Utiliser la méthode utilitaire sécurisée pour envoyer les headers
+      Response::sendHeader('Access-Control-Allow-Origin', $allowedOrigin, false);
+      Response::sendHeader('Access-Control-Allow-Methods', implode(', ', $this->allowedMethods), false);
+      Response::sendHeader('Access-Control-Allow-Headers', implode(', ', $this->allowedHeaders), false);
       
       if ($this->allowCredentials) {
-        $response->setHeader('Access-Control-Allow-Credentials', 'true');
-      }
-      
-      // Envoyer les headers immédiatement (CORS doit être envoyé avant le contenu)
-      foreach ($response->getHeaders() as $name => $value) {
-        header("$name: $value", false);
+        Response::sendHeader('Access-Control-Allow-Credentials', 'true', false);
       }
     }
 
@@ -64,11 +60,25 @@ class CorsMiddleware implements Middleware
   }
 
   /**
-   * Vérifie si l'origine est autorisée
+   * Vérifie si l'origine est autorisée avec validation stricte
+   * 
+   * @param string $origin Origine à valider
+   * @return bool True si l'origine est autorisée
    */
   private function isOriginAllowed(string $origin): bool
   {
     if (empty($origin)) {
+      return false;
+    }
+    
+    // Validation basique de l'URL (protection contre les injections)
+    if (!filter_var($origin, FILTER_VALIDATE_URL)) {
+      return false;
+    }
+    
+    // Vérifier le schéma (doit être http ou https)
+    $parsed = parse_url($origin);
+    if (!isset($parsed['scheme']) || !in_array($parsed['scheme'], ['http', 'https'])) {
       return false;
     }
     

@@ -19,7 +19,7 @@ class Response
   }
 
   /**
-   * Définit un header HTTP
+   * Définit un header HTTP de manière sécurisée
    * 
    * @param string $name Nom du header
    * @param string $value Valeur du header (sera échappée pour éviter les injections CRLF)
@@ -35,25 +35,58 @@ class Response
     $this->headers[$name] = $value;
   }
 
+
   /**
-   * Nettoie le nom d'un header pour éviter les injections
+   * Envoie un header HTTP de manière sécurisée (méthode utilitaire statique)
+   * 
+   * @param string $name Nom du header
+   * @param string $value Valeur du header
+   * @param bool $replace Remplacer un header existant
    */
-  private function sanitizeHeaderName(string $name): string
+  public static function sendHeader(string $name, string $value, bool $replace = true): void
+  {
+    // Utiliser les méthodes statiques de sanitization (pas de création d'instance)
+    $sanitizedName = self::sanitizeHeaderNameStatic($name);
+    $sanitizedValue = self::sanitizeHeaderValueStatic($value);
+    
+    header("$sanitizedName: $sanitizedValue", $replace);
+  }
+  
+  /**
+   * Nettoie le nom d'un header pour éviter les injections (méthode statique)
+   */
+  private static function sanitizeHeaderNameStatic(string $name): string
   {
     // Supprimer les caractères non autorisés dans les noms de headers
     return preg_replace('/[^a-zA-Z0-9\-]/', '', $name);
   }
 
   /**
-   * Nettoie la valeur d'un header pour éviter les injections CRLF
+   * Nettoie la valeur d'un header pour éviter les injections CRLF (méthode statique)
    */
-  private function sanitizeHeaderValue(string $value): string
+  private static function sanitizeHeaderValueStatic(string $value): string
   {
     // Supprimer les retours à la ligne et les caractères de contrôle
     $value = str_replace(["\r", "\n"], '', $value);
     // Supprimer les caractères de contrôle (0x00-0x1F sauf tab)
     $value = preg_replace('/[\x00-\x08\x0B-\x1F]/', '', $value);
     return $value;
+  }
+  
+  /**
+   * Nettoie le nom d'un header pour éviter les injections (méthode d'instance)
+   */
+  private function sanitizeHeaderName(string $name): string
+  {
+    return self::sanitizeHeaderNameStatic($name);
+  }
+
+  /**
+   * Nettoie la valeur d'un header pour éviter les injections CRLF (méthode d'instance)
+   */
+  private function sanitizeHeaderValue(string $value): string
+  {
+    return self::sanitizeHeaderValueStatic($value);
   }
 
   /**

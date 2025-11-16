@@ -23,6 +23,24 @@ class Router
   private array $middlewares = [];
 
   /**
+   * Cache de ReflectionClass pour améliorer les performances
+   */
+  private array $reflectionCache = [];
+
+  /**
+   * Index inversé pour la recherche rapide de routes par nom
+   * Structure : ['routeName' => ['path' => '/path', 'method' => 'GET', 'isDynamic' => false, 'dynamicRouteIndex' => 0]]
+   * Pour routes dynamiques : 'dynamicRouteIndex' est l'index dans dynamicRoutes pour accès O(1)
+   */
+  private array $routeNameIndex = [];
+  
+  /**
+   * Index des routes dynamiques par path pour accès O(1)
+   * Structure : ['/user/{id}' => index dans dynamicRoutes]
+   */
+  private array $dynamicRoutesByPath = [];
+
+  /**
    * Ajoute un middleware global au routeur
    */
   public function addMiddleware(Middleware $middleware): void
@@ -39,7 +57,7 @@ class Router
       throw new \InvalidArgumentException("Le contrôleur {$controller} n'existe pas.");
     }
 
-    $reflection = new ReflectionClass($controller);
+    $reflection = $this->getReflection($controller);
     
     foreach ($reflection->getMethods() as $method) {
       $attributes = $method->getAttributes(RouteAttribute::class);
@@ -76,21 +94,25 @@ class Router
             
             // Trouver ou créer l'entrée pour ce pattern
             $found = false;
-            foreach ($this->dynamicRoutes as &$dynamicRoute) {
+            $dynamicRouteIndex = null;
+            
+            foreach ($this->dynamicRoutes as $index => $dynamicRoute) {
               if ($dynamicRoute['pattern'] === $compiled['pattern']) {
-                $dynamicRoute['methods'][$httpMethod] = [
+                $this->dynamicRoutes[$index]['methods'][$httpMethod] = [
                   'controller' => $controller,
                   'method' => $method->getName(),
                   'middlewares' => $middlewares,
                   'name' => $routeAttribute->name,
                 ];
+                
+                $dynamicRouteIndex = $index;
                 $found = true;
                 break;
               }
             }
             
             if (!$found) {
-              $this->dynamicRoutes[] = [
+              $newDynamicRoute = [
                 'pattern' => $compiled['pattern'],
                 'params' => $compiled['params'],
                 'path' => $path,
@@ -102,6 +124,23 @@ class Router
                     'name' => $routeAttribute->name,
                   ],
                 ],
+              ];
+              
+              $this->dynamicRoutes[] = $newDynamicRoute;
+              $dynamicRouteIndex = count($this->dynamicRoutes) - 1;
+              
+              // Ajouter à l'index par path pour accès O(1)
+              $this->dynamicRoutesByPath[$path] = $dynamicRouteIndex;
+            }
+            
+            // Ajouter à l'index inversé pour recherche rapide par nom (O(1))
+            if (!empty($routeAttribute->name)) {
+              $this->routeNameIndex[$routeAttribute->name] = [
+                'path' => $path,
+                'method' => $httpMethod,
+                'isDynamic' => true,
+                'params' => $compiled['params'],
+                'dynamicRouteIndex' => $dynamicRouteIndex,
               ];
             }
           }
@@ -129,10 +168,33 @@ class Router
               'middlewares' => $middlewares,
               'name' => $routeAttribute->name,
             ];
+            
+            // Ajouter à l'index inversé pour recherche rapide par nom
+            if (!empty($routeAttribute->name)) {
+              $this->routeNameIndex[$routeAttribute->name] = [
+                'path' => $path,
+                'method' => $httpMethod,
+                'isDynamic' => false,
+              ];
+            }
           }
         }
       }
     }
+  }
+
+  /**
+   * Récupère ou crée une instance de ReflectionClass avec cache
+   * 
+   * @param string $class Nom de la classe
+   * @return ReflectionClass Instance de ReflectionClass
+   */
+  private function getReflection(string $class): ReflectionClass
+  {
+    if (!isset($this->reflectionCache[$class])) {
+      $this->reflectionCache[$class] = new ReflectionClass($class);
+    }
+    return $this->reflectionCache[$class];
   }
 
   /**
@@ -210,7 +272,7 @@ class Router
         throw new \RuntimeException("Le contrôleur {$controllerClass} n'existe pas.");
       }
       
-      $reflection = new \ReflectionClass($controllerClass);
+      $reflection = $this->getReflection($controllerClass);
       if (!$reflection->isInstantiable()) {
         throw new \RuntimeException("Le contrôleur {$controllerClass} n'est pas instanciable.");
       }
@@ -324,41 +386,41 @@ class Router
   }
 
   /**
-   * Retourne une route par son nom
+   * Retourne une route par son nom (optimisé O(1) pour toutes les routes)
    * 
    * @param string $name Nom de la route
    * @return array|null Informations sur la route ou null si non trouvée
    */
   public function getRouteByName(string $name): ?array
   {
-    if (empty($name)) {
+    if (empty($name) || !isset($this->routeNameIndex[$name])) {
       return null;
     }
     
-    // Chercher dans les routes statiques
-    foreach ($this->routes as $path => $methods) {
-      foreach ($methods as $method => $route) {
-        if (!empty($route['name']) && $route['name'] === $name) {
-          return [
-            'path' => $path,
-            'method' => $method,
-            'route' => $route,
-          ];
-        }
-      }
-    }
+    $index = $this->routeNameIndex[$name];
     
-    // Chercher dans les routes dynamiques
-    foreach ($this->dynamicRoutes as $dynamicRoute) {
-      foreach ($dynamicRoute['methods'] as $method => $route) {
-        if (!empty($route['name']) && $route['name'] === $name) {
+    if ($index['isDynamic']) {
+      // Route dynamique : accès direct O(1) via index
+      $dynamicRouteIndex = $index['dynamicRouteIndex'] ?? null;
+      if ($dynamicRouteIndex !== null && isset($this->dynamicRoutes[$dynamicRouteIndex])) {
+        $dynamicRoute = $this->dynamicRoutes[$dynamicRouteIndex];
+        if (isset($dynamicRoute['methods'][$index['method']])) {
           return [
             'path' => $dynamicRoute['path'],
-            'method' => $method,
-            'route' => $route,
+            'method' => $index['method'],
+            'route' => $dynamicRoute['methods'][$index['method']],
             'params' => $dynamicRoute['params'],
           ];
         }
+      }
+    } else {
+      // Route statique : accès direct O(1)
+      if (isset($this->routes[$index['path']][$index['method']])) {
+        return [
+          'path' => $index['path'],
+          'method' => $index['method'],
+          'route' => $this->routes[$index['path']][$index['method']],
+        ];
       }
     }
     

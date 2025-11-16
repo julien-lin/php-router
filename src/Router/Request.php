@@ -12,6 +12,11 @@ class Request
   private ?array $body = null;
   private string $rawBody = '';
   private array $routeParams = [];
+  
+  /**
+   * Taille maximale du body en bytes (10MB par défaut, protection DoS)
+   */
+  private int $maxBodySize = 10 * 1024 * 1024; // 10MB
 
   /**
    * @param string|null $uri URI personnalisée (pour les tests), null pour utiliser $_SERVER
@@ -68,7 +73,30 @@ class Request
    */
   private function loadBody(): void
   {
+    // Lire le body avec limite de taille pour protection DoS
+    $contentLength = (int)($this->getHeader('content-length', '0') ?? 0);
+    
+    // Vérifier la taille avant de lire (protection DoS)
+    if ($contentLength > $this->maxBodySize) {
+      throw new \RuntimeException(
+        sprintf('Body size (%d bytes) exceeds maximum allowed size (%d bytes)', $contentLength, $this->maxBodySize)
+      );
+    }
+    
     $this->rawBody = file_get_contents('php://input');
+    
+    // Vérifier la taille réelle après lecture (double protection)
+    if (strlen($this->rawBody) > $this->maxBodySize) {
+      throw new \RuntimeException(
+        sprintf('Body size (%d bytes) exceeds maximum allowed size (%d bytes)', strlen($this->rawBody), $this->maxBodySize)
+      );
+    }
+    
+    // Optimisation : ne pas parser si le body est vide
+    if (empty($this->rawBody)) {
+      $this->body = [];
+      return;
+    }
     
     $contentType = $this->getHeader('content-type', '');
     
@@ -81,6 +109,26 @@ class Request
       // Pour les autres types, essayer de parser comme form-urlencoded
       parse_str($this->rawBody, $this->body);
     }
+  }
+  
+  /**
+   * Définit la taille maximale du body (protection DoS)
+   * 
+   * @param int $maxSize Taille maximale en bytes
+   */
+  public function setMaxBodySize(int $maxSize): void
+  {
+    $this->maxBodySize = $maxSize;
+  }
+  
+  /**
+   * Retourne la taille maximale du body
+   * 
+   * @return int Taille maximale en bytes
+   */
+  public function getMaxBodySize(): int
+  {
+    return $this->maxBodySize;
   }
 
   /**
