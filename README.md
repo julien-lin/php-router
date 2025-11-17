@@ -618,6 +618,119 @@ new Response(int $statusCode = 200, string $content = '')
 - `getContent(): string` - Contenu
 - `getHeaders(): array` - Tous les headers
 
+## 🔗 Intégration avec les autres packages
+
+### Intégration avec core-php
+
+`core-php` inclut automatiquement `php-router`. Le router est accessible via `Application::getRouter()`.
+
+```php
+<?php
+
+use JulienLinard\Core\Application;
+use JulienLinard\Router\Attributes\Route;
+use JulienLinard\Router\Response;
+
+$app = Application::create(__DIR__);
+$router = $app->getRouter();
+
+class HomeController
+{
+    #[Route(path: '/', methods: ['GET'], name: 'home')]
+    public function index(): Response
+    {
+        return new Response(200, '<h1>Accueil</h1>');
+    }
+}
+
+$router->registerRoutes(HomeController::class);
+$app->start();
+```
+
+### Intégration avec auth-php
+
+Utilisez les middlewares d'authentification avec `php-router`.
+
+```php
+<?php
+
+use JulienLinard\Router\Router;
+use JulienLinard\Router\Attributes\Route;
+use JulienLinard\Router\Response;
+use JulienLinard\Auth\AuthManager;
+use JulienLinard\Auth\Middleware\AuthMiddleware;
+use JulienLinard\Auth\Middleware\RoleMiddleware;
+
+$router = new Router();
+$auth = new AuthManager($authConfig);
+
+class DashboardController
+{
+    #[Route(
+        path: '/dashboard',
+        methods: ['GET'],
+        name: 'dashboard',
+        middleware: [new AuthMiddleware($auth)]
+    )]
+    public function index(): Response
+    {
+        return new Response(200, '<h1>Dashboard</h1>');
+    }
+}
+
+class AdminController
+{
+    #[Route(
+        path: '/admin',
+        methods: ['GET'],
+        name: 'admin',
+        middleware: [
+            new AuthMiddleware($auth),
+            new RoleMiddleware('admin', $auth)
+        ]
+    )]
+    public function index(): Response
+    {
+        return new Response(200, '<h1>Admin</h1>');
+    }
+}
+
+$router->registerRoutes(DashboardController::class);
+$router->registerRoutes(AdminController::class);
+```
+
+### Utilisation standalone
+
+`php-router` peut être utilisé indépendamment de tous les autres packages.
+
+```php
+<?php
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+use JulienLinard\Router\Router;
+use JulienLinard\Router\Attributes\Route;
+use JulienLinard\Router\Request;
+use JulienLinard\Router\Response;
+
+$router = new Router();
+
+class HomeController
+{
+    #[Route(path: '/', methods: ['GET'], name: 'home')]
+    public function index(): Response
+    {
+        return new Response(200, 'Hello World');
+    }
+}
+
+$router->registerRoutes(HomeController::class);
+
+$request = new Request();
+$response = $router->handle($request);
+$response->send();
+```
+
 ## 🔗 Génération d'URL
 
 Le router permet de générer des URLs à partir des noms de routes, ce qui facilite la maintenance et évite les URLs codées en dur.
