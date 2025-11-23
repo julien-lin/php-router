@@ -2,6 +2,10 @@
 
 [🇬🇧 Read in English](README.md) | [🇫🇷 Read in French](README.fr.md)
 
+## 💝 Soutenir le projet
+
+Si ce bundle vous est utile, envisagez de [devenir un sponsor](https://github.com/sponsors/julien-lin) pour soutenir le développement et la maintenance de ce projet open source.
+
 ---
 
 Un routeur PHP moderne et complet pour gérer les routes de votre application avec support des routes dynamiques, middlewares, et toutes les fonctionnalités essentielles.
