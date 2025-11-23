@@ -1,37 +1,37 @@
 # PHP Router
 
-[🇫🇷 Read in French](README.fr.md) | [🇬🇧 Read in English](README.md)
+[🇬🇧 Read in English](README.md) | [🇫🇷 Read in French](README.fr.md)
 
 ---
 
-A modern and complete PHP router for managing your application routes with support for dynamic routes, middlewares, and all essential features.
+Un routeur PHP moderne et complet pour gérer les routes de votre application avec support des routes dynamiques, middlewares, et toutes les fonctionnalités essentielles.
 
-## 📋 Table of Contents
+## 📋 Table des matières
 
 - [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Route Definition](#route-definition)
-- [Dynamic Routes](#dynamic-routes)
-- [Route Groups](#route-groups)
-- [URL Generation](#url-generation)
+- [Démarrage rapide](#démarrage-rapide)
+- [Définition des routes](#définition-des-routes)
+- [Routes dynamiques](#routes-dynamiques)
+- [Groupes de routes](#groupes-de-routes)
+- [Génération d'URL](#génération-durl)
 - [Request](#request)
 - [Response](#response)
 - [Middlewares](#middlewares)
-- [Error Handling](#error-handling)
+- [Gestion des erreurs](#gestion-des-erreurs)
 - [API Reference](#api-reference)
-- [Complete Examples](#complete-examples)
+- [Exemples complets](#exemples-complets)
 
 ## 🚀 Installation
 
-Use Composer to install the package:
+Utilisez Composer pour installer le package :
 
 ```bash
 composer require julienlinard/php-router
 ```
 
-**Requirements**: PHP 8.0 or higher
+**Requirements** : PHP 8.0 ou supérieur
 
-## ⚡ Quick Start
+## ⚡ Démarrage rapide
 
 ```php
 <?php
@@ -43,35 +43,35 @@ use JulienLinard\Router\Request;
 use JulienLinard\Router\Response;
 use JulienLinard\Router\Attributes\Route;
 
-// Create a router instance
+// Créer une instance du routeur
 $router = new Router();
 
-// Define a controller with routes
+// Définir un contrôleur avec des routes
 class HomeController
 {
     #[Route(path: '/', methods: ['GET'], name: 'home')]
     public function index(): Response
     {
-        return new Response(200, 'Welcome!');
+        return new Response(200, 'Bienvenue !');
     }
 }
 
-// Register routes
+// Enregistrer les routes
 $router->registerRoutes(HomeController::class);
 
-// Handle the request
+// Traiter la requête
 $request = new Request();
 $response = $router->handle($request);
 
-// Send the response
+// Envoyer la réponse
 $response->send();
 ```
 
-## 🛣️ Route Definition
+## 🛣️ Définition des routes
 
-Routes are defined in your controllers using the `Route` attribute (PHP 8).
+Les routes sont définies dans vos contrôleurs en utilisant l'attribut `Route` (PHP 8).
 
-### Simple Route
+### Route simple
 
 ```php
 <?php
@@ -87,12 +87,12 @@ class HomeController
     #[Route(path: '/', methods: ['GET'], name: 'home')]
     public function index(): Response
     {
-        return new Response(200, 'Homepage');
+        return new Response(200, 'Page d\'accueil');
     }
 }
 ```
 
-### Routes with Multiple HTTP Methods
+### Routes avec plusieurs méthodes HTTP
 
 ```php
 class ApiController
@@ -107,13 +107,13 @@ class ApiController
     public function store(Request $request): Response
     {
         $data = $request->getBody();
-        // Process data...
-        return Response::json(['message' => 'User created'], 201);
+        // Traiter les données...
+        return Response::json(['message' => 'Utilisateur créé'], 201);
     }
 }
 ```
 
-### Route Registration
+### Enregistrement des routes
 
 ```php
 $router = new Router();
@@ -121,44 +121,44 @@ $router->registerRoutes(HomeController::class);
 $router->registerRoutes(ApiController::class);
 ```
 
-### Route Groups
+### Groupes de routes
 
-Route groups allow you to organize your routes with a common prefix and shared middlewares.
+Les groupes de routes permettent d'organiser vos routes avec un préfixe commun et des middlewares partagés.
 
 ```php
 use JulienLinard\Router\Middlewares\AuthMiddleware;
 
-// Group with prefix only
+// Groupe avec préfixe uniquement
 $router->group('/api', [], function($router) {
     $router->registerRoutes(ApiController::class);
-    // All routes will have the /api prefix
+    // Toutes les routes auront le préfixe /api
 });
 
-// Group with prefix and middlewares
+// Groupe avec préfixe et middlewares
 $router->group('/admin', [AuthMiddleware::class], function($router) {
     $router->registerRoutes(AdminController::class);
-    // All routes will have the /admin prefix AND the AuthMiddleware
+    // Toutes les routes auront le préfixe /admin ET le middleware AuthMiddleware
 });
 
-// Nested groups
+// Groupes imbriqués
 $router->group('/api', [], function($router) {
     $router->group('/v1', [], function($router) {
         $router->registerRoutes(ApiV1Controller::class);
-        // Routes with /api/v1 prefix
+        // Routes avec préfixe /api/v1
     });
     
     $router->group('/v2', [], function($router) {
         $router->registerRoutes(ApiV2Controller::class);
-        // Routes with /api/v2 prefix
+        // Routes avec préfixe /api/v2
     });
 });
 ```
 
-**Complete Example**:
+**Exemple complet** :
 ```php
 class ApiController
 {
-    // Path defined in controller: '/users'
+    // Path défini dans le contrôleur : '/users'
     #[Route(path: '/users', methods: ['GET'], name: 'api.users.index')]
     public function index(): Response
     {
@@ -166,19 +166,19 @@ class ApiController
     }
 }
 
-// Registration with group
+// Enregistrement avec groupe
 $router->group('/api', [], function($router) {
     $router->registerRoutes(ApiController::class);
 });
 
-// The route will be accessible at: /api/users
+// La route sera accessible à : /api/users
 ```
 
-## 🔄 Dynamic Routes
+## 🔄 Routes dynamiques
 
-The router supports dynamic routes with parameters automatically extracted from the URL.
+Le router supporte les routes dynamiques avec paramètres extraits automatiquement de l'URL.
 
-### Route with One Parameter
+### Route avec un paramètre
 
 ```php
 class UserController
@@ -190,15 +190,15 @@ class UserController
         
         return Response::json([
             'user_id' => $userId,
-            'message' => "Displaying user {$userId}"
+            'message' => "Affichage de l'utilisateur {$userId}"
         ]);
     }
 }
 ```
 
-**Example URL**: `/user/123` → `$userId = '123'`
+**Exemple d'URL** : `/user/123` → `$userId = '123'`
 
-### Route with Multiple Parameters
+### Route avec plusieurs paramètres
 
 ```php
 class PostController
@@ -217,42 +217,42 @@ class PostController
 }
 ```
 
-**Example URL**: `/user/123/post/my-article` → `$userId = '123'`, `$slug = 'my-article'`
+**Exemple d'URL** : `/user/123/post/mon-article` → `$userId = '123'`, `$slug = 'mon-article'`
 
-### Accessing Parameters
+### Accès aux paramètres
 
 ```php
-// Get a specific parameter
+// Obtenir un paramètre spécifique
 $id = $request->getRouteParam('id');
-$id = $request->getRouteParam('id', 'default'); // with default value
+$id = $request->getRouteParam('id', 'default'); // avec valeur par défaut
 
-// Get all parameters
-$params = $request->getRouteParams(); // ['id' => '123', 'slug' => 'my-article']
+// Obtenir tous les paramètres
+$params = $request->getRouteParams(); // ['id' => '123', 'slug' => 'mon-article']
 ```
 
 ## 📥 Request
 
-The `Request` class provides complete access to HTTP request data.
+La classe `Request` fournit un accès complet aux données de la requête HTTP.
 
-### Path and Method
+### Path et méthode
 
 ```php
 $request = new Request();
 
 $path = $request->getPath();        // '/user/123'
-$method = $request->getMethod();    // 'GET', 'POST', etc.
+$method = $request->getMethod();     // 'GET', 'POST', etc.
 ```
 
-### Query Parameters
+### Query parameters
 
 ```php
 // URL: /search?q=php&page=2
 $query = $request->getQueryParam('q');           // 'php'
-$page = $request->getQueryParam('page', 1);      // '2' or 1 as default
+$page = $request->getQueryParam('page', 1);      // '2' ou 1 par défaut
 $allParams = $request->getQueryParams();         // ['q' => 'php', 'page' => '2']
 ```
 
-### HTTP Headers
+### Headers HTTP
 
 ```php
 $contentType = $request->getHeader('content-type');
@@ -270,75 +270,75 @@ $allCookies = $request->getCookies();
 ### Body (POST/PUT/PATCH)
 
 ```php
-// For JSON
+// Pour JSON
 $data = $request->getBody();                    // ['name' => 'John', 'email' => '...']
 $name = $request->getBodyParam('name');         // 'John'
-$rawBody = $request->getRawBody();              // Raw string
+$rawBody = $request->getRawBody();              // String brute
 
-// For form-urlencoded
+// Pour form-urlencoded
 $data = $request->getBody();                    // ['field1' => 'value1', ...]
 ```
 
-### Utility Methods
+### Méthodes utilitaires
 
 ```php
 if ($request->isAjax()) {
-    // AJAX request
+    // Requête AJAX
 }
 
 if ($request->wantsJson()) {
-    // Client accepts JSON
+    // Le client accepte JSON
 }
 ```
 
-### Customization for Tests
+### Personnalisation pour les tests
 
 ```php
-// Create a custom request for tests
+// Créer une requête personnalisée pour les tests
 $request = new Request('/user/123', 'GET');
 ```
 
 ## 📤 Response
 
-The `Response` class allows you to create and send HTTP responses.
+La classe `Response` permet de créer et envoyer des réponses HTTP.
 
-### Simple Response
+### Réponse simple
 
 ```php
-$response = new Response(200, 'Response content');
+$response = new Response(200, 'Contenu de la réponse');
 $response->send();
 ```
 
-### JSON Response
+### Réponse JSON
 
 ```php
-$data = ['message' => 'Success', 'data' => []];
+$data = ['message' => 'Succès', 'data' => []];
 $response = Response::json($data, 200);
 $response->send();
 ```
 
-### Custom Headers
+### Headers personnalisés
 
 ```php
-$response = new Response(200, 'Content');
-$response->setHeader('X-Custom-Header', 'value');
+$response = new Response(200, 'Contenu');
+$response->setHeader('X-Custom-Header', 'valeur');
 $response->setHeader('Content-Type', 'application/xml');
 $response->send();
 ```
 
-### Available Methods
+### Méthodes disponibles
 
 ```php
 $statusCode = $response->getStatusCode();    // 200
-$content = $response->getContent();          // 'Content'
+$content = $response->getContent();          // 'Contenu'
 $headers = $response->getHeaders();         // ['content-type' => 'application/json']
 ```
 
 ## 🛡️ Middlewares
 
-Middlewares allow you to execute code before request processing.
+Les middlewares permettent d'exécuter du code avant le traitement de la requête.
 
-### Global Middlewares
+### Middlewares globaux
 
 ```php
 use JulienLinard\Router\Middlewares\CorsMiddleware;
@@ -346,12 +346,12 @@ use JulienLinard\Router\Middlewares\LoggingMiddleware;
 
 $router = new Router();
 
-// Add a global middleware
+// Ajouter un middleware global
 $router->addMiddleware(new CorsMiddleware());
 $router->addMiddleware(new LoggingMiddleware());
 ```
 
-### Route-Specific Middlewares
+### Middlewares spécifiques à une route
 
 ```php
 use JulienLinard\Router\Middlewares\AuthMiddleware;
@@ -367,22 +367,22 @@ class AdminController
     )]
     public function dashboard(): Response
     {
-        return new Response(200, 'Admin dashboard');
+        return new Response(200, 'Dashboard admin');
     }
 }
 ```
 
-### Available Middlewares
+### Middlewares disponibles
 
 #### CorsMiddleware
 
 ```php
 use JulienLinard\Router\Middlewares\CorsMiddleware;
 
-// Default configuration (all origins)
+// Configuration par défaut (toutes origines)
 $cors = new CorsMiddleware();
 
-// Custom configuration
+// Configuration personnalisée
 $cors = new CorsMiddleware(
     allowedOrigins: ['https://example.com', 'https://app.example.com'],
     allowedMethods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -407,7 +407,7 @@ class ProtectedController
     )]
     public function profile(): Response
     {
-        // User is authenticated
+        // L'utilisateur est authentifié
         return Response::json(['user' => $_SESSION['user']]);
     }
 }
@@ -427,12 +427,12 @@ class AdminController
     )]
     public function users(): Response
     {
-        // User is authenticated AND has admin role
+        // L'utilisateur est authentifié ET a le rôle admin
         return Response::json(['users' => []]);
     }
 }
 
-// In your bootstrap
+// Dans votre bootstrap
 $router->addMiddleware(new RoleMiddleware('admin'));
 ```
 
@@ -442,10 +442,10 @@ $router->addMiddleware(new RoleMiddleware('admin'));
 use JulienLinard\Router\Middlewares\LoggingMiddleware;
 
 $router->addMiddleware(new LoggingMiddleware());
-// Log all requests to error_log
+// Log toutes les requêtes dans error_log
 ```
 
-### Create a Custom Middleware
+### Créer un middleware personnalisé
 
 ```php
 <?php
@@ -460,34 +460,34 @@ class CustomMiddleware implements Middleware
 {
     public function handle(Request $request): void
     {
-        // Your logic here
-        // For example, check a condition
+        // Votre logique ici
+        // Par exemple, vérifier une condition
         
-        if (/* condition not met */) {
-            Response::json(['error' => 'Access denied'], 403)->send();
+        if (/* condition non remplie */) {
+            Response::json(['error' => 'Accès refusé'], 403)->send();
             exit;
         }
         
-        // Otherwise, continue execution
+        // Sinon, continuer l'exécution
     }
 }
 ```
 
-## ⚠️ Error Handling
+## ⚠️ Gestion des erreurs
 
-The router automatically handles common errors:
+Le router gère automatiquement les erreurs courantes :
 
-- **404 Not Found**: Route not found
-- **405 Method Not Allowed**: HTTP method not supported for this route
-- **500 Internal Server Error**: Server error (exceptions)
+- **404 Not Found** : Route non trouvée
+- **405 Method Not Allowed** : Méthode HTTP non supportée pour cette route
+- **500 Internal Server Error** : Erreur serveur (exceptions)
 
-### Customize Error Handling
+### Personnaliser la gestion d'erreurs
 
 ```php
 use JulienLinard\Router\ErrorHandler;
 
-// Errors are automatically handled by the router
-// You can use ErrorHandler directly if needed
+// Les erreurs sont gérées automatiquement par le router
+// Vous pouvez utiliser ErrorHandler directement si besoin
 
 $response = ErrorHandler::handleNotFound();      // 404
 $response = ErrorHandler::handleServerError($e); // 500
@@ -499,7 +499,7 @@ $response = ErrorHandler::handleServerError($e); // 500
 
 #### `registerRoutes(string $controller): void`
 
-Registers all routes of a controller.
+Enregistre toutes les routes d'un contrôleur.
 
 ```php
 $router->registerRoutes(HomeController::class);
@@ -507,7 +507,7 @@ $router->registerRoutes(HomeController::class);
 
 #### `addMiddleware(Middleware $middleware): void`
 
-Adds a global middleware.
+Ajoute un middleware global.
 
 ```php
 $router->addMiddleware(new CorsMiddleware());
@@ -515,7 +515,7 @@ $router->addMiddleware(new CorsMiddleware());
 
 #### `handle(Request $request): Response`
 
-Processes a request and returns the response.
+Traite une requête et retourne la réponse.
 
 ```php
 $response = $router->handle($request);
@@ -523,7 +523,7 @@ $response = $router->handle($request);
 
 #### `getRoutes(): array`
 
-Returns all registered routes (debug).
+Retourne toutes les routes enregistrées (debug).
 
 ```php
 $routes = $router->getRoutes();
@@ -532,7 +532,7 @@ $routes = $router->getRoutes();
 
 #### `getRouteByName(string $name): ?array`
 
-Returns a route by its name.
+Retourne une route par son nom.
 
 ```php
 $route = $router->getRouteByName('home');
@@ -541,40 +541,40 @@ $route = $router->getRouteByName('home');
 
 #### `url(string $name, array $params = [], array $queryParams = []): ?string`
 
-Generates a URL from a route name and its parameters.
+Génère une URL à partir du nom d'une route et de ses paramètres.
 
 ```php
-// Static route
+// Route statique
 $url = $router->url('home');
-// Returns: '/'
+// Retourne : '/'
 
-// Dynamic route with one parameter
+// Route dynamique avec un paramètre
 $url = $router->url('user.show', ['id' => '123']);
-// Returns: '/user/123'
+// Retourne : '/user/123'
 
-// Dynamic route with multiple parameters
-$url = $router->url('post.show', ['userId' => '123', 'slug' => 'my-article']);
-// Returns: '/user/123/post/my-article'
+// Route dynamique avec plusieurs paramètres
+$url = $router->url('post.show', ['userId' => '123', 'slug' => 'mon-article']);
+// Retourne : '/user/123/post/mon-article'
 
-// With query parameters
+// Avec query parameters
 $url = $router->url('user.show', ['id' => '123'], ['page' => '2', 'sort' => 'name']);
-// Returns: '/user/123?page=2&sort=name'
+// Retourne : '/user/123?page=2&sort=name'
 
-// Returns null if route doesn't exist
+// Retourne null si la route n'existe pas
 $url = $router->url('non-existent');
-// Returns: null
+// Retourne : null
 
-// Throws exception if required parameter is missing
+// Lance une exception si un paramètre requis est manquant
 try {
-    $url = $router->url('user.show', []); // Missing 'id' parameter
+    $url = $router->url('user.show', []); // Paramètre 'id' manquant
 } catch (\InvalidArgumentException $e) {
-    // "The parameter 'id' is required for route 'user.show'."
+    // "Le paramètre 'id' est requis pour la route 'user.show'."
 }
 ```
 
 #### `group(string $prefix, array $middlewares, callable $callback): void`
 
-Creates a route group with a prefix and common middlewares.
+Crée un groupe de routes avec un préfixe et des middlewares communs.
 
 ```php
 $router->group('/api', [AuthMiddleware::class], function($router) {
@@ -584,49 +584,49 @@ $router->group('/api', [AuthMiddleware::class], function($router) {
 
 ### Request
 
-#### Main Methods
+#### Méthodes principales
 
-- `getPath(): string` - Request path
-- `getMethod(): string` - HTTP method
-- `getQueryParams(): array` - All query parameters
-- `getQueryParam(string $key, $default = null)` - A query parameter
-- `getHeaders(): array` - All headers
-- `getHeader(string $name, ?string $default = null): ?string` - A header
-- `getCookies(): array` - All cookies
-- `getCookie(string $name, $default = null)` - A cookie
-- `getBody(): ?array` - Parsed body
-- `getBodyParam(string $key, $default = null)` - A body parameter
-- `getRawBody(): string` - Raw body
-- `getRouteParams(): array` - All route parameters
-- `getRouteParam(string $key, $default = null)` - A route parameter
-- `isAjax(): bool` - Checks if it's an AJAX request
-- `wantsJson(): bool` - Checks if client accepts JSON
+- `getPath(): string` - Chemin de la requête
+- `getMethod(): string` - Méthode HTTP
+- `getQueryParams(): array` - Tous les query parameters
+- `getQueryParam(string $key, $default = null)` - Un query parameter
+- `getHeaders(): array` - Tous les headers
+- `getHeader(string $name, ?string $default = null): ?string` - Un header
+- `getCookies(): array` - Tous les cookies
+- `getCookie(string $name, $default = null)` - Un cookie
+- `getBody(): ?array` - Body parsé
+- `getBodyParam(string $key, $default = null)` - Un paramètre du body
+- `getRawBody(): string` - Body brut
+- `getRouteParams(): array` - Tous les paramètres de route
+- `getRouteParam(string $key, $default = null)` - Un paramètre de route
+- `isAjax(): bool` - Vérifie si c'est une requête AJAX
+- `wantsJson(): bool` - Vérifie si le client accepte JSON
 
 ### Response
 
-#### Constructor
+#### Constructeur
 
 ```php
 new Response(int $statusCode = 200, string $content = '')
 ```
 
-#### Static Methods
+#### Méthodes statiques
 
-- `Response::json($data, int $statusCode = 200): self` - Creates a JSON response
+- `Response::json($data, int $statusCode = 200): self` - Crée une réponse JSON
 
-#### Instance Methods
+#### Méthodes d'instance
 
-- `setHeader(string $name, string $value): void` - Sets a header
-- `send(): void` - Sends the HTTP response
-- `getStatusCode(): int` - Status code
-- `getContent(): string` - Content
-- `getHeaders(): array` - All headers
+- `setHeader(string $name, string $value): void` - Définit un header
+- `send(): void` - Envoie la réponse HTTP
+- `getStatusCode(): int` - Code de statut
+- `getContent(): string` - Contenu
+- `getHeaders(): array` - Tous les headers
 
-## 🔗 Integration with Other Packages
+## 🔗 Intégration avec les autres packages
 
-### Integration with core-php
+### Intégration avec core-php
 
-`core-php` automatically includes `php-router`. The router is accessible via `Application::getRouter()`.
+`core-php` inclut automatiquement `php-router`. Le router est accessible via `Application::getRouter()`.
 
 ```php
 <?php
@@ -643,7 +643,7 @@ class HomeController
     #[Route(path: '/', methods: ['GET'], name: 'home')]
     public function index(): Response
     {
-        return new Response(200, '<h1>Home</h1>');
+        return new Response(200, '<h1>Accueil</h1>');
     }
 }
 
@@ -651,9 +651,9 @@ $router->registerRoutes(HomeController::class);
 $app->start();
 ```
 
-### Integration with auth-php
+### Intégration avec auth-php
 
-Use authentication middlewares with `php-router`.
+Utilisez les middlewares d'authentification avec `php-router`.
 
 ```php
 <?php
@@ -703,9 +703,9 @@ $router->registerRoutes(DashboardController::class);
 $router->registerRoutes(AdminController::class);
 ```
 
-### Standalone Usage
+### Utilisation standalone
 
-`php-router` can be used independently of all other packages.
+`php-router` peut être utilisé indépendamment de tous les autres packages.
 
 ```php
 <?php
@@ -735,29 +735,29 @@ $response = $router->handle($request);
 $response->send();
 ```
 
-## 🔗 URL Generation
+## 🔗 Génération d'URL
 
-The router allows you to generate URLs from route names, which facilitates maintenance and avoids hardcoded URLs.
+Le router permet de générer des URLs à partir des noms de routes, ce qui facilite la maintenance et évite les URLs codées en dur.
 
-### Simple URL Generation
+### Génération d'URL simple
 
 ```php
-// In your views or controllers
+// Dans vos vues ou contrôleurs
 $homeUrl = $router->url('home');
-// Returns: '/'
+// Retourne : '/'
 
 $userUrl = $router->url('user.show', ['id' => '123']);
-// Returns: '/user/123'
+// Retourne : '/user/123'
 ```
 
-### URL Generation with Query Parameters
+### Génération d'URL avec query parameters
 
 ```php
 $url = $router->url('user.show', ['id' => '123'], ['page' => '2', 'sort' => 'name']);
-// Returns: '/user/123?page=2&sort=name'
+// Retourne : '/user/123?page=2&sort=name'
 ```
 
-### Usage in Responses
+### Utilisation dans les réponses
 
 ```php
 class UserController
@@ -767,7 +767,7 @@ class UserController
     {
         $id = $request->getRouteParam('id');
         
-        // Generate next user URL
+        // Générer l'URL de l'utilisateur suivant
         $nextUserId = (int)$id + 1;
         $nextUrl = $router->url('user.show', ['id' => $nextUserId]);
         
@@ -779,11 +779,11 @@ class UserController
 }
 ```
 
-**Note**: To use `$router` in your controllers, you can inject it via a dependency container or pass it as a parameter.
+**Note** : Pour utiliser `$router` dans vos contrôleurs, vous pouvez l'injecter via un conteneur de dépendances ou le passer en paramètre.
 
-## 💡 Complete Examples
+## 💡 Exemples complets
 
-### Example 1: Complete REST API with Groups
+### Exemple 1 : API REST complète avec groupes
 
 ```php
 <?php
@@ -798,7 +798,7 @@ use JulienLinard\Router\Middlewares\CorsMiddleware;
 
 class UserController
 {
-    // Paths are defined without the /api prefix (added by group)
+    // Les paths sont définis sans le préfixe /api (ajouté par le groupe)
     #[Route(path: '/users', methods: ['GET'], name: 'users.index')]
     public function index(): Response
     {
@@ -816,8 +816,8 @@ class UserController
     public function store(Request $request): Response
     {
         $data = $request->getBody();
-        // Create user...
-        return Response::json(['message' => 'User created'], 201);
+        // Créer l'utilisateur...
+        return Response::json(['message' => 'Utilisateur créé'], 201);
     }
 
     #[Route(path: '/users/{id}', methods: ['PUT'], name: 'users.update')]
@@ -825,39 +825,39 @@ class UserController
     {
         $id = $request->getRouteParam('id');
         $data = $request->getBody();
-        // Update user...
-        return Response::json(['message' => 'User updated']);
+        // Mettre à jour l'utilisateur...
+        return Response::json(['message' => 'Utilisateur mis à jour']);
     }
 
     #[Route(path: '/users/{id}', methods: ['DELETE'], name: 'users.delete')]
     public function delete(Request $request): Response
     {
         $id = $request->getRouteParam('id');
-        // Delete user...
-        return Response::json(['message' => 'User deleted'], 204);
+        // Supprimer l'utilisateur...
+        return Response::json(['message' => 'Utilisateur supprimé'], 204);
     }
 }
 
-// Configuration with groups
+// Configuration avec groupes
 $router = new Router();
 $router->addMiddleware(new CorsMiddleware());
 
-// API group with /api prefix
+// Groupe API avec préfixe /api
 $router->group('/api', [], function($router) {
     $router->registerRoutes(UserController::class);
 });
 
-// Processing
+// Traitement
 $request = new Request();
 $response = $router->handle($request);
 $response->send();
 
-// URL generation
+// Génération d'URLs
 $usersUrl = $router->url('users.index');           // '/api/users'
 $userUrl = $router->url('users.show', ['id' => 5]); // '/api/users/5'
 ```
 
-### Example 2: Web Application with Authentication and Groups
+### Exemple 2 : Application web avec authentification et groupes
 
 ```php
 <?php
@@ -876,7 +876,7 @@ class HomeController
     #[Route(path: '/', methods: ['GET'], name: 'home')]
     public function index(): Response
     {
-        return new Response(200, '<h1>Welcome</h1>');
+        return new Response(200, '<h1>Bienvenue</h1>');
     }
 }
 
@@ -886,7 +886,7 @@ class AuthController
     public function login(Request $request): Response
     {
         if ($request->getMethod() === 'POST') {
-            // Process login
+            // Traiter la connexion
             $_SESSION['user'] = ['id' => 1, 'role' => 'user'];
             return new Response(302, '', ['Location' => '/dashboard']);
         }
@@ -922,24 +922,24 @@ class AdminController
     }
 }
 
-// Configuration with groups
+// Configuration avec groupes
 $router = new Router();
 
-// Public routes
+// Routes publiques
 $router->registerRoutes(HomeController::class);
 $router->registerRoutes(AuthController::class);
 
-// Dashboard group with authentication
+// Groupe dashboard avec authentification
 $router->group('/dashboard', [AuthMiddleware::class], function($router) {
     $router->registerRoutes(DashboardController::class);
 });
 
-// Admin group with authentication and role
+// Groupe admin avec authentification et rôle
 $router->group('/admin', [AuthMiddleware::class, new RoleMiddleware('admin')], function($router) {
     $router->registerRoutes(AdminController::class);
 });
 
-// Processing
+// Traitement
 session_start();
 $request = new Request();
 $response = $router->handle($request);
@@ -948,30 +948,30 @@ $response->send();
 
 ## 🧪 Tests
 
-The package includes a complete test suite. To run the tests:
+Le package inclut une suite de tests complète. Pour exécuter les tests :
 
 ```bash
 composer test
-# or
+# ou
 vendor/bin/phpunit tests/
 ```
 
 ## 📝 License
 
-MIT License - See the LICENSE file for more details.
+MIT License - Voir le fichier LICENSE pour plus de détails.
 
-## 🤝 Contributing
+## 🤝 Contribution
 
-Contributions are welcome! Feel free to open an issue or a pull request.
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
 
 ## 📧 Support
 
-For any questions or issues, please open an issue on GitHub.
+Pour toute question ou problème, veuillez ouvrir une issue sur GitHub.
 
-## 💝 Support the project
+## 💝 Soutenir le projet
 
-If this bundle is useful to you, consider [becoming a sponsor](https://github.com/sponsors/julien-lin) to support the development and maintenance of this open source project.
+Si ce bundle vous est utile, envisagez de [devenir un sponsor](https://github.com/sponsors/julien-lin) pour soutenir le développement et la maintenance de ce projet open source.
 
 ---
 
-**Developed with ❤️ by Julien Linard**
+**Développé avec ❤️ par Julien Linard**
