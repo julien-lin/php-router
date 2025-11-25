@@ -30,6 +30,11 @@ class Router
    * Cache de ReflectionClass pour améliorer les performances
    */
   private array $reflectionCache = [];
+  
+  /**
+   * Container d'injection de dépendances (optionnel)
+   */
+  private $container = null;
 
   /**
    * Index inversé pour la recherche rapide de routes par nom
@@ -43,6 +48,16 @@ class Router
    * Structure : ['/user/{id}' => index dans dynamicRoutes]
    */
   private array $dynamicRoutesByPath = [];
+
+  /**
+   * Définit le container d'injection de dépendances
+   * 
+   * @param object $container Container DI (doit avoir une méthode make())
+   */
+  public function setContainer($container): void
+  {
+    $this->container = $container;
+  }
 
   /**
    * Ajoute un middleware global au routeur
@@ -291,7 +306,12 @@ class Router
         throw new \RuntimeException("La méthode {$controllerMethod} n'est pas publique dans le contrôleur {$controllerClass}.");
       }
       
-      $controller = new $controllerClass();
+      // Instancier le contrôleur via le Container si disponible, sinon directement
+      if ($this->container !== null && method_exists($this->container, 'make')) {
+        $controller = $this->container->make($controllerClass);
+      } else {
+        $controller = new $controllerClass();
+      }
       
       // Préparer les arguments pour la méthode
       $args = [];
@@ -366,7 +386,7 @@ class Router
     if ($middleware instanceof Middleware) {
       $middlewareInstance = $middleware;
     } else {
-      // Sinon, instancier la classe
+      // Sinon, instancier la classe via le Container si disponible
       if (!class_exists($middleware)) {
         throw new \InvalidArgumentException("Le middleware {$middleware} n'existe pas.");
       }
@@ -375,7 +395,11 @@ class Router
         throw new \InvalidArgumentException("Le middleware {$middleware} doit implémenter l'interface Middleware.");
       }
       
-      $middlewareInstance = new $middleware();
+      if ($this->container !== null && method_exists($this->container, 'make')) {
+        $middlewareInstance = $this->container->make($middleware);
+      } else {
+        $middlewareInstance = new $middleware();
+      }
     }
 
     // Exécuter le middleware
