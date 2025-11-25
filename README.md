@@ -338,6 +338,56 @@ $content = $response->getContent();          // 'Content'
 $headers = $response->getHeaders();         // ['content-type' => 'application/json']
 ```
 
+## 🔌 Dependency Injection
+
+The Router now supports dependency injection via a Container. This allows automatic injection of dependencies into controllers and middlewares.
+
+### Configuration with Container
+
+```php
+use JulienLinard\Router\Router;
+use JulienLinard\Core\Container\Container;
+
+$router = new Router();
+$container = new Container();
+
+// Pass the Container to the Router
+$router->setContainer($container);
+
+// The Router will automatically use the Container to instantiate controllers
+```
+
+### Controllers with Dependencies
+
+```php
+use JulienLinard\Router\Attributes\Route;
+use JulienLinard\Router\Response;
+use JulienLinard\Doctrine\EntityManager;
+use JulienLinard\Auth\AuthManager;
+
+class UserController
+{
+    private EntityManager $em;
+    private AuthManager $auth;
+
+    // Dependencies are automatically injected via the Container
+    public function __construct(EntityManager $em, AuthManager $auth)
+    {
+        $this->em = $em;
+        $this->auth = $auth;
+    }
+
+    #[Route(path: '/users', methods: ['GET'], name: 'users.index')]
+    public function index(): Response
+    {
+        $users = $this->em->getRepository(User::class)->findAll();
+        return Response::json($users);
+    }
+}
+```
+
+**Note**: If no Container is set, the Router instantiates controllers directly with `new`.
+
 ## 🛡️ Middlewares
 
 Middlewares allow you to execute code before request processing.
