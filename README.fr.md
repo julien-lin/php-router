@@ -338,6 +338,56 @@ $content = $response->getContent();          // 'Contenu'
 $headers = $response->getHeaders();         // ['content-type' => 'application/json']
 ```
 
+## 🔌 Injection de Dépendances
+
+Le Router supporte maintenant l'injection de dépendances via un Container. Cela permet d'injecter automatiquement des dépendances dans les contrôleurs et middlewares.
+
+### Configuration avec Container
+
+```php
+use JulienLinard\Router\Router;
+use JulienLinard\Core\Container\Container;
+
+$router = new Router();
+$container = new Container();
+
+// Passer le Container au Router
+$router->setContainer($container);
+
+// Le Router utilisera automatiquement le Container pour instancier les contrôleurs
+```
+
+### Contrôleurs avec Dépendances
+
+```php
+use JulienLinard\Router\Attributes\Route;
+use JulienLinard\Router\Response;
+use JulienLinard\Doctrine\EntityManager;
+use JulienLinard\Auth\AuthManager;
+
+class UserController
+{
+    private EntityManager $em;
+    private AuthManager $auth;
+
+    // Les dépendances sont automatiquement injectées via le Container
+    public function __construct(EntityManager $em, AuthManager $auth)
+    {
+        $this->em = $em;
+        $this->auth = $auth;
+    }
+
+    #[Route(path: '/users', methods: ['GET'], name: 'users.index')]
+    public function index(): Response
+    {
+        $users = $this->em->getRepository(User::class)->findAll();
+        return Response::json($users);
+    }
+}
+```
+
+**Note** : Si aucun Container n'est défini, le Router instancie les contrôleurs directement avec `new`.
+
 ## 🛡️ Middlewares
 
 Les middlewares permettent d'exécuter du code avant le traitement de la requête.
