@@ -24,13 +24,14 @@ class RoleMiddleware implements Middleware
   /**
    * Vérifie si l'utilisateur a le rôle requis
    */
-  public function handle(Request $request): void
+  public function handle(Request $request): ?Response
   {
     $this->ensureSessionStarted();
     
     if (!isset($_SESSION['user']) || !isset($_SESSION['user']['role']) || $_SESSION['user']['role'] !== $this->requiredRole) {
-      Response::json(['error' => 'Access denied'], 403)->send();
-      exit;
+      return Response::json(['error' => 'Access denied'], 403);
     }
+    
+    return null; // Continuer l'exécution
   }
 }

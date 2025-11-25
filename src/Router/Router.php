@@ -225,7 +225,7 @@ class Router
       // Exécuter les middlewares globaux
       foreach ($this->middlewares as $middleware) {
         $response = $this->executeMiddleware($middleware, $request);
-        if ($response !== null) {
+        if ($response instanceof Response) {
           return $response;
         }
       }
@@ -277,7 +277,7 @@ class Router
       // Exécuter les middlewares spécifiques à la route
       foreach ($route['middlewares'] as $middlewareClass) {
         $response = $this->executeMiddleware($middlewareClass, $request);
-        if ($response !== null) {
+        if ($response instanceof Response) {
           return $response;
         }
       }
@@ -402,13 +402,12 @@ class Router
       }
     }
 
-    // Exécuter le middleware
-    $middlewareInstance->handle($request);
+    // Exécuter le middleware et récupérer la réponse
+    $response = $middlewareInstance->handle($request);
     
-    // Si le middleware a envoyé une réponse (via exit ou autre), on ne peut pas continuer
-    // Pour l'instant, on retourne null pour continuer l'exécution
-    // Note: Les middlewares qui utilisent exit() empêcheront l'exécution de continuer
-    return null;
+    // Si le middleware retourne une Response, l'arrêter l'exécution
+    // Sinon, continuer avec le middleware suivant
+    return $response;
   }
 
   /**

@@ -392,6 +392,8 @@ class UserController
 
 Middlewares allow you to execute code before request processing.
 
+**Important** : The `Middleware` interface has been improved. The `handle()` method now returns `?Response` instead of `void`. If a middleware returns a `Response`, execution stops and that response is returned. If it returns `null`, execution continues with the next middleware.
+
 ### Global Middlewares
 
 ```php
