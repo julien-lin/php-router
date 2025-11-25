@@ -392,6 +392,8 @@ class UserController
 
 Les middlewares permettent d'exécuter du code avant le traitement de la requête.
 
+**Important** : L'interface `Middleware` a été améliorée. La méthode `handle()` retourne maintenant `?Response` au lieu de `void`. Si un middleware retourne une `Response`, l'exécution s'arrête et cette réponse est renvoyée. Si elle retourne `null`, l'exécution continue avec le middleware suivant.
+
 ### Middlewares globaux
 
 ```php
