@@ -514,17 +514,18 @@ use JulienLinard\Router\Response;
 
 class CustomMiddleware implements Middleware
 {
-    public function handle(Request $request): void
+    public function handle(Request $request): ?Response
     {
         // Votre logique ici
         // Par exemple, vérifier une condition
         
         if (/* condition non remplie */) {
-            Response::json(['error' => 'Accès refusé'], 403)->send();
-            exit;
+            // Retourner une Response pour arrêter l'exécution
+            return Response::json(['error' => 'Accès refusé'], 403);
         }
         
-        // Sinon, continuer l'exécution
+        // Retourner null pour continuer l'exécution
+        return null;
     }
 }
 ```
