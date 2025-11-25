@@ -34,7 +34,7 @@ class CorsMiddleware implements Middleware
   /**
    * Gère les en-têtes CORS pour la requête
    */
-  public function handle(Request $request): void
+  public function handle(Request $request): ?Response
   {
     $origin = $request->getHeader('origin', '');
     
@@ -54,9 +54,10 @@ class CorsMiddleware implements Middleware
 
     // Gérer les requêtes preflight OPTIONS
     if ($request->getMethod() === 'OPTIONS') {
-      Response::json([], 204)->send();
-      exit;
+      return Response::json([], 204);
     }
+    
+    return null; // Continuer l'exécution
   }
 
   /**

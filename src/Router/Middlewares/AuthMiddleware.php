@@ -14,13 +14,14 @@ class AuthMiddleware implements Middleware
   /**
    * Vérifie si l'utilisateur est authentifié
    */
-  public function handle(Request $request): void
+  public function handle(Request $request): ?Response
   {
     $this->ensureSessionStarted();
     
     if (!isset($_SESSION['user'])) {
-      Response::json(['error' => 'Unauthorized'], 401)->send();
-      exit;
+      return Response::json(['error' => 'Unauthorized'], 401);
     }
+    
+    return null; // Continuer l'exécution
   }
 }
