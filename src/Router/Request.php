@@ -281,4 +281,20 @@ class Request
   {
     return $this->routeParams[$key] ?? $default;
   }
+
+  /**
+   * Retourne les données POST
+   * 
+   * @param string|null $key Clé du paramètre (null pour retourner tout $_POST)
+   * @param mixed $default Valeur par défaut si le paramètre n'existe pas
+   * @return mixed|array
+   */
+  public function getPost(?string $key = null, $default = null)
+  {
+    if ($key === null) {
+      return $_POST;
+    }
+
+    return $_POST[$key] ?? $default;
+  }
 }
