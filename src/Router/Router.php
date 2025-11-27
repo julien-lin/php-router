@@ -48,6 +48,12 @@ class Router
    * Structure : ['/user/{id}' => index dans dynamicRoutes]
    */
   private array $dynamicRoutesByPath = [];
+  
+  /**
+   * Cache de compilation des routes dynamiques par pattern
+   * Structure : ['/user/{id}' => ['pattern' => regex, 'params' => ['id']]]
+   */
+  private array $compilationCache = [];
 
   /**
    * Définit le container d'injection de dépendances
@@ -90,13 +96,26 @@ class Router
           $path = $this->currentGroupPrefix . ($path === '/' ? '' : $path);
         }
         
+        // Valider le format du path
+        $this->validatePath($path);
+        
+        // Vérifier l'unicité du nom de route
+        if (!empty($routeAttribute->name)) {
+          if (isset($this->routeNameIndex[$routeAttribute->name])) {
+            throw new \RuntimeException(
+              "Le nom de route '{$routeAttribute->name}' est déjà utilisé. " .
+              "Chaque route doit avoir un nom unique."
+            );
+          }
+        }
+        
         // Fusionner les middlewares du groupe avec ceux de la route
         $middlewares = array_merge($this->currentGroupMiddlewares, $routeAttribute->middleware);
         
         // Vérifier si la route contient des paramètres dynamiques
         if ($this->hasDynamicParams($path)) {
           // Route dynamique
-          $compiled = $this->compileDynamicRoute($path);
+          $compiled = $this->compileDynamicRoute($path, $routeAttribute->constraints);
           
           // Enregistrer chaque méthode HTTP pour ce path
           foreach ($routeAttribute->methods as $httpMethod) {
@@ -154,6 +173,14 @@ class Router
             
             // Ajouter à l'index inversé pour recherche rapide par nom (O(1))
             if (!empty($routeAttribute->name)) {
+              // Vérifier à nouveau l'unicité (au cas où plusieurs méthodes HTTP)
+              if (isset($this->routeNameIndex[$routeAttribute->name])) {
+                throw new \RuntimeException(
+                  "Le nom de route '{$routeAttribute->name}' est déjà utilisé. " .
+                  "Chaque route doit avoir un nom unique."
+                );
+              }
+              
               $this->routeNameIndex[$routeAttribute->name] = [
                 'path' => $path,
                 'method' => $httpMethod,
@@ -190,6 +217,14 @@ class Router
             
             // Ajouter à l'index inversé pour recherche rapide par nom
             if (!empty($routeAttribute->name)) {
+              // Vérifier à nouveau l'unicité (au cas où plusieurs méthodes HTTP)
+              if (isset($this->routeNameIndex[$routeAttribute->name])) {
+                throw new \RuntimeException(
+                  "Le nom de route '{$routeAttribute->name}' est déjà utilisé. " .
+                  "Chaque route doit avoir un nom unique."
+                );
+              }
+              
               $this->routeNameIndex[$routeAttribute->name] = [
                 'path' => $path,
                 'method' => $httpMethod,
@@ -244,8 +279,11 @@ class Router
         }
         $route = $this->routes[$path][$method];
       } else {
-        // Chercher dans les routes dynamiques
-        foreach ($this->dynamicRoutes as $dynamicRoute) {
+        // Chercher dans les routes dynamiques (triées par spécificité)
+        // Les routes avec plus de paramètres sont plus spécifiques et doivent être testées en premier
+        $sortedDynamicRoutes = $this->getSortedDynamicRoutes();
+        
+        foreach ($sortedDynamicRoutes as $dynamicRoute) {
           if (preg_match($dynamicRoute['pattern'], $path, $matches)) {
             // Route dynamique trouvée
             if (!isset($dynamicRoute['methods'][$method])) {
@@ -411,6 +449,45 @@ class Router
   }
 
   /**
+   * Valide le format d'un path
+   * 
+   * @param string $path Path à valider
+   * @throws \InvalidArgumentException Si le path est malformé
+   */
+  private function validatePath(string $path): void
+  {
+    // Rejeter les doubles slashes (sauf pour la racine)
+    if ($path !== '/' && str_contains($path, '//')) {
+      throw new \InvalidArgumentException(
+        "Le path '{$path}' contient des doubles slashes. " .
+        "Utilisez un seul slash entre les segments."
+      );
+    }
+    
+    // Rejeter les trailing slashes sauf pour la racine
+    if ($path !== '/' && str_ends_with($path, '/')) {
+      throw new \InvalidArgumentException(
+        "Le path '{$path}' se termine par un slash (sauf pour la racine). " .
+        "Supprimez le trailing slash."
+      );
+    }
+    
+    // Valider le format des paramètres dynamiques
+    if (preg_match('/\{[^}]+\}/', $path, $matches)) {
+      foreach ($matches as $match) {
+        // Vérifier que le nom du paramètre est valide (lettres, chiffres, underscore)
+        $paramName = trim($match, '{}');
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $paramName)) {
+          throw new \InvalidArgumentException(
+            "Le paramètre '{$match}' dans le path '{$path}' a un nom invalide. " .
+            "Utilisez uniquement des lettres, chiffres et underscores, commençant par une lettre ou underscore."
+          );
+        }
+      }
+    }
+  }
+
+  /**
    * Vérifie si un path contient des paramètres dynamiques
    */
   private function hasDynamicParams(string $path): bool
@@ -422,20 +499,31 @@ class Router
    * Compile une route dynamique en pattern regex et extrait les noms des paramètres
    * 
    * @param string $path Path avec paramètres (ex: /user/{id}/post/{slug})
+   * @param array $constraints Contraintes de validation pour les paramètres (ex: ['id' => '\d+'])
    * @return array ['pattern' => regex, 'params' => ['id', 'slug']]
    */
-  private function compileDynamicRoute(string $path): array
+  private function compileDynamicRoute(string $path, array $constraints = []): array
   {
+    // Vérifier le cache de compilation
+    $cacheKey = $path . '|' . serialize($constraints);
+    if (isset($this->compilationCache[$cacheKey])) {
+      return $this->compilationCache[$cacheKey];
+    }
+    
     $params = [];
     
     // Remplacer les paramètres {name} par des placeholders temporaires
     $placeholders = [];
     $pattern = preg_replace_callback(
       '/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/',
-      function ($matches) use (&$params, &$placeholders) {
-        $params[] = $matches[1];
+      function ($matches) use (&$params, &$placeholders, $constraints) {
+        $paramName = $matches[1];
+        $params[] = $paramName;
         $placeholder = '__PARAM_' . count($params) . '__';
-        $placeholders[] = $placeholder;
+        $placeholders[] = [
+          'placeholder' => $placeholder,
+          'constraint' => $constraints[$paramName] ?? null
+        ];
         return $placeholder;
       },
       $path
@@ -444,18 +532,28 @@ class Router
     // Échapper tous les caractères spéciaux de regex
     $pattern = preg_quote($pattern, '#');
     
-    // Remplacer les placeholders par les patterns de capture
-    foreach ($placeholders as $placeholder) {
-      $pattern = str_replace(preg_quote($placeholder, '#'), '([^/]+)', $pattern);
+    // Remplacer les placeholders par les patterns de capture avec contraintes
+    foreach ($placeholders as $item) {
+      $placeholder = $item['placeholder'];
+      $constraint = $item['constraint'];
+      
+      // Utiliser la contrainte si fournie, sinon pattern par défaut
+      $capturePattern = $constraint !== null ? "({$constraint})" : '([^/]+)';
+      $pattern = str_replace(preg_quote($placeholder, '#'), $capturePattern, $pattern);
     }
     
     // Ajouter les délimiteurs de début et fin
     $pattern = '#^' . $pattern . '$#';
     
-    return [
+    $result = [
       'pattern' => $pattern,
       'params' => $params,
     ];
+    
+    // Mettre en cache
+    $this->compilationCache[$cacheKey] = $result;
+    
+    return $result;
   }
 
   /**
@@ -597,6 +695,34 @@ class Router
    * Middlewares actuels pour les groupes de routes
    */
   private array $currentGroupMiddlewares = [];
+
+  /**
+   * Retourne les routes dynamiques triées par spécificité (plus de paramètres = plus spécifique)
+   * Cette optimisation améliore les performances en testant d'abord les routes les plus spécifiques
+   * 
+   * @return array Routes dynamiques triées
+   */
+  private function getSortedDynamicRoutes(): array
+  {
+    // Créer une copie pour ne pas modifier l'original
+    $sorted = $this->dynamicRoutes;
+    
+    // Trier par nombre de paramètres (décroissant) puis par longueur du path (décroissante)
+    usort($sorted, function($a, $b) {
+      $aParamCount = count($a['params']);
+      $bParamCount = count($b['params']);
+      
+      // D'abord par nombre de paramètres (plus = plus spécifique)
+      if ($aParamCount !== $bParamCount) {
+        return $bParamCount <=> $aParamCount;
+      }
+      
+      // Ensuite par longueur du path (plus long = plus spécifique)
+      return strlen($b['path']) <=> strlen($a['path']);
+    });
+    
+    return $sorted;
+  }
 
   /**
    * Exécute le router (méthode principale pour compatibilité avec l'ancien code)
