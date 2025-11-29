@@ -5,6 +5,67 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.4.0] - 2025-11-29
+
+### ✨ Ajouté
+
+- **Tests de sécurité** : Ajout de tests complets pour la protection CRLF injection
+  - Tests de sanitization des headers (nom et valeur)
+  - Tests de protection contre les caractères de contrôle
+  - Tests de validation CORS (origines valides/invalides, wildcard, schémas)
+  - Tests de protection DoS (limite de taille du body)
+  - Tests de normalisation des noms de headers
+
+- **Tests de middlewares** : Ajout de tests complets pour tous les middlewares intégrés
+  - Tests pour `AuthMiddleware` (authentifié/non authentifié)
+  - Tests pour `RoleMiddleware` (avec/sans rôle requis)
+  - Tests pour `LoggingMiddleware`
+  - Tests pour `CorsMiddleware` (preflight, credentials, validation)
+  - Tests de chaîne de middlewares
+
+### 🔧 Amélioré
+
+- **Strict Types** : Ajout de `declare(strict_types=1)` dans tous les fichiers source
+  - Améliore la type safety et la détection d'erreurs
+  - Appliqué à tous les fichiers (Router, Request, Response, Middlewares, etc.)
+
+- **Type Hints** : Amélioration des type hints avec PHP 8
+  - Utilisation du type `mixed` pour les paramètres et retours flexibles
+  - Amélioration des types pour `getQueryParam()`, `getCookie()`, `getBodyParam()`, `getRouteParam()`
+  - Type `?object` pour le container d'injection de dépendances
+
+- **Normalisation des headers** : Les noms de headers sont maintenant normalisés en minuscules
+  - Cohérence dans le stockage et la récupération des headers
+  - Améliore la compatibilité et la prévisibilité
+
+- **Gestion des erreurs JSON** : Amélioration de la gestion des erreurs d'encodage JSON
+  - Utilisation de `JSON_THROW_ON_ERROR` pour une meilleure gestion des exceptions
+  - Options JSON optimisées (`JSON_UNESCAPED_UNICODE`, `JSON_UNESCAPED_SLASHES`)
+  - Validation stricte du parsing JSON dans Request
+
+- **Validation des URI** : Ajout de validation pour les URI invalides
+  - Vérification que `parse_url()` retourne un résultat valide
+  - Exception claire en cas d'URI malformée
+
+- **Code Quality** : Refactorisation de la gestion du mode debug
+  - Méthode privée `isDebugMode()` pour centraliser la vérification
+  - Code plus maintenable et testable
+
+### 🐛 Corrigé
+
+- **Tests** : Correction de tous les tests en échec
+  - Correction du test `testResponseHeaders` (normalisation en minuscules)
+  - Correction du test `testResponseHeaderSanitization` (vérification complète)
+  - Correction du test `testCorsMiddlewareOriginValidation` (utilisation de $_SERVER)
+  - Correction du test `testMiddlewareChain` (ajout de l'attribut Route)
+
+### 📊 Statistiques
+
+- **Tests** : 48 tests (31 → 48, +17 nouveaux tests)
+- **Assertions** : 103 assertions (60 → 103, +43 nouvelles assertions)
+- **Taux de réussite** : 100% (tous les tests passent)
+- **Couverture** : Tests de sécurité et middlewares complets
+
 ## [1.3.0] - 2025-11-27
 
 ### ✨ Ajouté

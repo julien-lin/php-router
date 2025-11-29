@@ -1,13 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JulienLinard\Router;
 
 class ErrorHandler
 {
+  /**
+   * Vérifie si le mode debug est activé
+   * 
+   * @return bool True si le mode debug est activé
+   */
+  private static function isDebugMode(): bool
+  {
+    return defined('APP_DEBUG') && constant('APP_DEBUG') === true;
+  }
+
   public static function handleNotFound(): Response
   {
     // Vérifier si on est en mode debug pour afficher une page HTML
-    if (defined('APP_DEBUG') && APP_DEBUG) {
+    if (self::isDebugMode()) {
       return self::renderErrorPage('Page non trouvée', 'La page demandée n\'existe pas.', 404);
     }
     return Response::json(['error' => 'Not Found'], 404);
@@ -25,7 +37,7 @@ class ErrorHandler
     ));
     
     // Si on est en mode debug, afficher une page HTML détaillée
-    if (defined('APP_DEBUG') && APP_DEBUG) {
+    if (self::isDebugMode()) {
       return self::renderErrorPage(
         'Erreur serveur',
         $e->getMessage(),

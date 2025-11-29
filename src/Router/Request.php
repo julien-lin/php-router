@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JulienLinard\Router;
 
 class Request
@@ -29,13 +31,17 @@ class Request
     
     // Séparer le path de la query string
     $parsedUrl = parse_url($requestUri);
+    if ($parsedUrl === false) {
+      throw new \InvalidArgumentException("URI invalide: {$requestUri}");
+    }
+    
     $this->path = $parsedUrl['path'] ?? '/';
     
     // Normaliser le path (supprimer les trailing slashes sauf pour la racine)
     $this->path = rtrim($this->path, '/') ?: '/';
     
     // Parser les query parameters
-    if (isset($parsedUrl['query'])) {
+    if (isset($parsedUrl['query']) && $parsedUrl['query'] !== '') {
       parse_str($parsedUrl['query'], $this->queryParams);
     }
     
@@ -102,7 +108,7 @@ class Request
     
     if (str_contains($contentType, 'application/json')) {
       $decoded = json_decode($this->rawBody, true);
-      $this->body = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+      $this->body = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
     } elseif (str_contains($contentType, 'application/x-www-form-urlencoded')) {
       parse_str($this->rawBody, $this->body);
     } else {
@@ -162,7 +168,7 @@ class Request
    * @param mixed $default Valeur par défaut si le paramètre n'existe pas
    * @return mixed
    */
-  public function getQueryParam(string $key, $default = null)
+  public function getQueryParam(string $key, mixed $default = null): mixed
   {
     return $this->queryParams[$key] ?? $default;
   }
@@ -222,7 +228,7 @@ class Request
    * @param mixed $default Valeur par défaut si le paramètre n'existe pas
    * @return mixed
    */
-  public function getBodyParam(string $key, $default = null)
+  public function getBodyParam(string $key, mixed $default = null): mixed
   {
     return $this->body[$key] ?? $default;
   }
@@ -277,7 +283,7 @@ class Request
    * @param mixed $default Valeur par défaut si le paramètre n'existe pas
    * @return mixed
    */
-  public function getRouteParam(string $key, $default = null)
+  public function getRouteParam(string $key, mixed $default = null): mixed
   {
     return $this->routeParams[$key] ?? $default;
   }
