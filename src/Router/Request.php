@@ -259,6 +259,41 @@ class Request
   }
 
   /**
+   * Retourne l'IP du client
+   * 
+   * Gère les proxies en vérifiant les headers X-Forwarded-For et X-Real-IP
+   * 
+   * @return string|null IP du client ou null si non disponible
+   */
+  public function getClientIp(): ?string
+  {
+    // Vérifier X-Forwarded-For (peut contenir plusieurs IPs séparées par des virgules)
+    $forwardedFor = $this->getHeader('x-forwarded-for');
+    if ($forwardedFor !== null) {
+      // Prendre la première IP (celle du client original)
+      $ips = array_map('trim', explode(',', $forwardedFor));
+      $ip = $ips[0] ?? null;
+      if ($ip !== null && filter_var($ip, FILTER_VALIDATE_IP)) {
+        return $ip;
+      }
+    }
+
+    // Vérifier X-Real-IP
+    $realIp = $this->getHeader('x-real-ip');
+    if ($realIp !== null && filter_var($realIp, FILTER_VALIDATE_IP)) {
+      return $realIp;
+    }
+
+    // Utiliser REMOTE_ADDR en dernier recours
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? null;
+    if ($remoteAddr !== null && filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
+      return $remoteAddr;
+    }
+
+    return null;
+  }
+
+  /**
    * Définit les paramètres de route (utilisé par le Router)
    * 
    * @param array $params Paramètres de route extraits de l'URL
