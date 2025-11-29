@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JulienLinard\Router;
 
 class Response
@@ -58,7 +60,9 @@ class Response
   private static function sanitizeHeaderNameStatic(string $name): string
   {
     // Supprimer les caractères non autorisés dans les noms de headers
-    return preg_replace('/[^a-zA-Z0-9\-]/', '', $name);
+    $name = preg_replace('/[^a-zA-Z0-9\-]/', '', $name);
+    // Normaliser en minuscules pour cohérence
+    return strtolower($name);
   }
 
   /**
@@ -110,9 +114,14 @@ class Response
    * @param int $statusCode Code de statut HTTP (200 par défaut)
    * @return self Instance de Response avec le contenu JSON
    */
-  public static function json($data, int $statusCode = 200): self
+  public static function json(mixed $data, int $statusCode = 200): self
   {
-    $response = new self($statusCode, json_encode($data));
+    try {
+      $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\JsonException $e) {
+      throw new \RuntimeException('Erreur lors de l\'encodage JSON: ' . $e->getMessage(), 0, $e);
+    }
+    $response = new self($statusCode, $json);
     $response->setHeader('Content-Type', 'application/json');
     return $response;
   }

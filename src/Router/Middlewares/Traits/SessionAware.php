@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JulienLinard\Router\Middlewares\Traits;
 
 trait SessionAware

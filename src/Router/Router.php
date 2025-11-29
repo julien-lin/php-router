@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace JulienLinard\Router;
 
 use ReflectionClass;
@@ -34,7 +36,7 @@ class Router
   /**
    * Container d'injection de dépendances (optionnel)
    */
-  private $container = null;
+  private ?object $container = null;
 
   /**
    * Index inversé pour la recherche rapide de routes par nom
@@ -58,9 +60,9 @@ class Router
   /**
    * Définit le container d'injection de dépendances
    * 
-   * @param object $container Container DI (doit avoir une méthode make())
+   * @param object|null $container Container DI (doit avoir une méthode make())
    */
-  public function setContainer($container): void
+  public function setContainer(?object $container): void
   {
     $this->container = $container;
   }
@@ -636,7 +638,7 @@ class Router
         }
         
         $value = $params[$paramName];
-        // Encoder la valeur pour l'URL
+        // Encoder la valeur pour l'URL (rawurlencode pour sécurité)
         $path = str_replace('{' . $paramName . '}', rawurlencode((string)$value), $path);
       }
     }

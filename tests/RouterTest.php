@@ -8,6 +8,7 @@ use JulienLinard\Router\Router;
 use JulienLinard\Router\Request;
 use JulienLinard\Router\Response;
 use JulienLinard\Router\ErrorHandler;
+use JulienLinard\Router\Middlewares\CorsMiddleware;
 
 class RouterTest extends TestCase
 {
@@ -197,9 +198,11 @@ class RouterTest extends TestCase
     $response->setHeader('X-Test', "value\r\nInjection");
     $headers = $response->getHeaders();
     
-    // Le header doit être nettoyé
+    // Le header doit être nettoyé et normalisé en minuscules
+    $this->assertArrayHasKey('x-test', $headers);
     $this->assertStringNotContainsString("\r", $headers['x-test']);
     $this->assertStringNotContainsString("\n", $headers['x-test']);
+    $this->assertEquals('valueInjection', $headers['x-test']);
   }
 
   public function testUrlGenerationStaticRoute()
@@ -264,14 +267,18 @@ class RouterTest extends TestCase
 
   public function testRouteGroupingWithMiddleware()
   {
-    $middlewareCalled = false;
-    $testMiddleware = new class($middlewareCalled) implements \JulienLinard\Router\Middleware {
-      private &$flag;
-      public function __construct(&$flag) {
-        $this->flag = &$flag;
+    // Utiliser un objet pour partager l'état entre le test et le middleware
+    $state = new \stdClass();
+    $state->called = false;
+    
+    $testMiddleware = new class($state) implements \JulienLinard\Router\Middleware {
+      private $state;
+      public function __construct($state) {
+        $this->state = $state;
       }
-      public function handle(\JulienLinard\Router\Request $request): void {
-        $this->flag = true;
+      public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+        $this->state->called = true;
+        return null;
       }
     };
 
@@ -282,6 +289,7 @@ class RouterTest extends TestCase
     $request = new Request('/admin/', 'GET');
     $this->router->handle($request);
     // Note: Le middleware sera appelé mais ne bloque pas l'exécution dans ce cas
+    $this->assertTrue($state->called);
   }
 
   public function testNestedRouteGroups()
@@ -350,19 +358,24 @@ class RouterTest extends TestCase
   {
     $cors = new CorsMiddleware(['https://example.com']);
     
-    // Test origine valide
+    // Test origine valide - créer une requête avec header Origin
+    // On simule une requête avec header Origin via $_SERVER
+    $_SERVER['HTTP_ORIGIN'] = 'https://example.com';
     $request = new Request();
-    $requestReflection = new \ReflectionClass($request);
-    $headersProperty = $requestReflection->getProperty('headers');
-    $headersProperty->setAccessible(true);
-    $headersProperty->setValue($request, ['origin' => 'https://example.com']);
     
-    // Test origine invalide (schéma non autorisé)
+    // Le middleware devrait accepter l'origine valide
+    $response = $cors->handle($request);
+    $this->assertNull($response); // Le middleware continue l'exécution
+    
+    // Test origine invalide (non autorisée)
+    $_SERVER['HTTP_ORIGIN'] = 'https://evil.com';
     $request2 = new Request();
-    $headersProperty->setValue($request2, ['origin' => 'ftp://example.com']);
+    $response2 = $cors->handle($request2);
+    // Le middleware devrait continuer mais ne pas ajouter les headers CORS
+    $this->assertNull($response2);
     
-    // Le middleware devrait valider correctement
-    $this->assertTrue(true); // Test structurel
+    // Nettoyer $_SERVER
+    unset($_SERVER['HTTP_ORIGIN']);
   }
 
   public function testErrorHandlerStackTrace()
