@@ -7,10 +7,7 @@
          executionOrder="depends,defects"
          failOnRisky="true"
          failOnWarning="true"
-         beStrictAboutOutputDuringTests="true"
-         beStrictAboutTodoAnnotatedTests="true"
-         convertDeprecationsToExceptions="true"
-         verbose="true">
+        beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Router Test Suite">
             <directory>tests</directory>

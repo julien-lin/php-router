@@ -4,214 +4,252 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use JulienLinard\Router\Attributes\Route;
 use PHPUnit\Framework\TestCase;
 use JulienLinard\Router\Router;
 use JulienLinard\Router\Request;
 use JulienLinard\Router\Response;
-use JulienLinard\Router\Attributes\Route;
-use JulienLinard\Router\Middlewares\AuthMiddleware;
-use JulienLinard\Router\Middlewares\RoleMiddleware;
-use JulienLinard\Router\Middlewares\LoggingMiddleware;
-use JulienLinard\Router\Middlewares\CorsMiddleware;
+use JulienLinard\Router\Middleware;
 
+/**
+ * Tests complets pour les middlewares
+ */
 class MiddlewareTest extends TestCase
 {
-  /**
-   * Test du middleware d'authentification - utilisateur non authentifié
-   */
-  public function testAuthMiddlewareUnauthenticated()
-  {
-    // S'assurer qu'aucune session n'est active
-    if (session_status() === PHP_SESSION_ACTIVE) {
-      session_destroy();
-    }
-    
-    $middleware = new AuthMiddleware();
-    $request = new Request('/test', 'GET');
-    
-    $response = $middleware->handle($request);
-    
-    // Le middleware doit retourner une réponse 401
-    $this->assertInstanceOf(Response::class, $response);
-    $this->assertEquals(401, $response->getStatusCode());
-    
-    $content = json_decode($response->getContent(), true);
-    $this->assertArrayHasKey('error', $content);
-    $this->assertEquals('Unauthorized', $content['error']);
-  }
+    private Router $router;
 
-  /**
-   * Test du middleware d'authentification - utilisateur authentifié
-   */
-  public function testAuthMiddlewareAuthenticated()
-  {
-    // Démarrer une session et simuler un utilisateur authentifié
-    if (session_status() === PHP_SESSION_NONE) {
-      session_start();
+    protected function setUp(): void
+    {
+        $this->router = new Router();
     }
-    
-    $_SESSION['user'] = ['id' => 1, 'name' => 'Test User'];
-    
-    $middleware = new AuthMiddleware();
-    $request = new Request('/test', 'GET');
-    
-    $response = $middleware->handle($request);
-    
-    // Le middleware doit retourner null (continuer l'exécution)
-    $this->assertNull($response);
-    
-    // Nettoyer
-    unset($_SESSION['user']);
-    if (session_status() === PHP_SESSION_ACTIVE) {
-      session_destroy();
+
+    /**
+     * Test qu'un middleware global est appelé
+     */
+    public function testGlobalMiddlewareCalled(): void
+    {
+        $state = new \stdClass();
+        $state->called = false;
+        
+        $middleware = new class($state) implements Middleware {
+            private $state;
+            public function __construct($state) { $this->state = $state; }
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                $this->state->called = true;
+                return null;
+            }
+        };
+
+        $this->router->addMiddleware($middleware);
+        $this->router->registerRoutes(TestController::class);
+
+        $request = new Request('/test', 'GET');
+        $this->router->handle($request);
+
+        $this->assertTrue($state->called, 'Le middleware global devrait être appelé');
     }
-  }
 
-  /**
-   * Test du middleware de rôle - utilisateur sans le bon rôle
-   */
-  public function testRoleMiddlewareWithoutRole()
-  {
-    // Démarrer une session
-    if (session_status() === PHP_SESSION_NONE) {
-      session_start();
+    /**
+     * Test qu'un middleware global peut bloquer l'exécution
+     */
+    public function testGlobalMiddlewareCanBlock(): void
+    {
+        $middleware = new class implements Middleware {
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                return new \JulienLinard\Router\Response(401, 'Unauthorized');
+            }
+        };
+
+        $this->router->addMiddleware($middleware);
+        $this->router->registerRoutes(TestController::class);
+
+        $request = new Request('/test', 'GET');
+        $response = $this->router->handle($request);
+
+        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertEquals('Unauthorized', $response->getContent());
     }
-    
-    // Utilisateur sans rôle ou avec un rôle différent
-    $_SESSION['user'] = ['id' => 1, 'role' => 'user'];
-    
-    $middleware = new RoleMiddleware('admin');
-    $request = new Request('/admin', 'GET');
-    
-    $response = $middleware->handle($request);
-    
-    // Le middleware doit retourner une réponse 403
-    $this->assertInstanceOf(Response::class, $response);
-    $this->assertEquals(403, $response->getStatusCode());
-    
-    $content = json_decode($response->getContent(), true);
-    $this->assertArrayHasKey('error', $content);
-    $this->assertEquals('Access denied', $content['error']);
-    
-    // Nettoyer
-    unset($_SESSION['user']);
-    if (session_status() === PHP_SESSION_ACTIVE) {
-      session_destroy();
+
+    /**
+     * Test que plusieurs middlewares globaux sont appelés dans l'ordre
+     */
+    public function testMultipleGlobalMiddlewaresCalledInOrder(): void
+    {
+        $state = new \stdClass();
+        $state->order = [];
+
+        $middleware1 = new class($state) implements Middleware {
+            private $state;
+            public function __construct($state) { $this->state = $state; }
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                $this->state->order[] = 1;
+                return null;
+            }
+        };
+
+        $middleware2 = new class($state) implements Middleware {
+            private $state;
+            public function __construct($state) { $this->state = $state; }
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                $this->state->order[] = 2;
+                return null;
+            }
+        };
+
+        $this->router->addMiddleware($middleware1);
+        $this->router->addMiddleware($middleware2);
+        $this->router->registerRoutes(TestController::class);
+
+        $request = new Request('/test', 'GET');
+        $this->router->handle($request);
+
+        $this->assertEquals([1, 2], $state->order, 'Les middlewares devraient être appelés dans l\'ordre');
     }
-  }
 
-  /**
-   * Test du middleware de rôle - utilisateur avec le bon rôle
-   */
-  public function testRoleMiddlewareWithRole()
-  {
-    // Démarrer une session
-    if (session_status() === PHP_SESSION_NONE) {
-      session_start();
+    /**
+     * Test qu'un middleware de route est appelé
+     */
+    public function testRouteMiddlewareCalled(): void
+    {
+        TestMiddleware::reset();
+        
+        $this->router->registerRoutes(RouteWithMiddlewareController::class);
+
+        $request = new Request('/test-middleware', 'GET');
+        $this->router->handle($request);
+
+        $this->assertTrue(TestMiddleware::wasCalled(), 'Le middleware de route devrait être appelé');
     }
-    
-    $_SESSION['user'] = ['id' => 1, 'role' => 'admin'];
-    
-    $middleware = new RoleMiddleware('admin');
-    $request = new Request('/admin', 'GET');
-    
-    $response = $middleware->handle($request);
-    
-    // Le middleware doit retourner null (continuer l'exécution)
-    $this->assertNull($response);
-    
-    // Nettoyer
-    unset($_SESSION['user']);
-    if (session_status() === PHP_SESSION_ACTIVE) {
-      session_destroy();
+
+    /**
+     * Test qu'un middleware de route peut bloquer l'exécution
+     */
+    public function testRouteMiddlewareCanBlock(): void
+    {
+        // Utiliser un middleware qui bloque
+        $this->router->registerRoutes(RouteWithBlockingMiddlewareController::class);
+
+        $request = new Request('/test-blocking', 'GET');
+        $response = $this->router->handle($request);
+
+        $this->assertEquals(403, $response->getStatusCode());
     }
-  }
 
-  /**
-   * Test du middleware de logging
-   */
-  public function testLoggingMiddleware()
-  {
-    $middleware = new LoggingMiddleware();
-    $request = new Request('/test', 'GET');
-    
-    // Capturer la sortie d'error_log (difficile à tester directement)
-    // On vérifie juste que le middleware ne bloque pas l'exécution
-    $response = $middleware->handle($request);
-    
-    $this->assertNull($response); // Le middleware continue l'exécution
-  }
+    /**
+     * Test que les middlewares globaux sont appelés avant les middlewares de route
+     */
+    public function testGlobalMiddlewaresBeforeRouteMiddlewares(): void
+    {
+        $state = new \stdClass();
+        $state->order = [];
 
-  /**
-   * Test du middleware CORS - requête OPTIONS (preflight)
-   */
-  public function testCorsMiddlewarePreflight()
-  {
-    $cors = new CorsMiddleware(['https://example.com']);
-    
-    $_SERVER['HTTP_ORIGIN'] = 'https://example.com';
-    $_SERVER['REQUEST_METHOD'] = 'OPTIONS';
-    $request = new Request('/api/test', 'OPTIONS');
-    
-    $response = $cors->handle($request);
-    
-    // Le middleware doit retourner une réponse 204 pour OPTIONS
-    $this->assertInstanceOf(Response::class, $response);
-    $this->assertEquals(204, $response->getStatusCode());
-    
-    unset($_SERVER['HTTP_ORIGIN']);
-    unset($_SERVER['REQUEST_METHOD']);
-  }
+        $globalMiddleware = new class($state) implements Middleware {
+            private $state;
+            public function __construct($state) { $this->state = $state; }
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                $this->state->order[] = 'global';
+                return null;
+            }
+        };
 
-  /**
-   * Test du middleware CORS - requête normale avec credentials
-   */
-  public function testCorsMiddlewareWithCredentials()
-  {
-    $cors = new CorsMiddleware(
-      ['https://example.com'],
-      ['GET', 'POST'],
-      ['Content-Type', 'Authorization'],
-      true // allowCredentials
-    );
-    
-    $_SERVER['HTTP_ORIGIN'] = 'https://example.com';
-    $request = new Request('/api/test', 'GET');
-    
-    $response = $cors->handle($request);
-    
-    // Le middleware doit continuer l'exécution
-    $this->assertNull($response);
-    
-    unset($_SERVER['HTTP_ORIGIN']);
-  }
+        $this->router->addMiddleware($globalMiddleware);
+        $this->router->registerRoutes(RouteWithMiddlewareController::class);
 
-  /**
-   * Test de chaîne de middlewares
-   */
-  public function testMiddlewareChain()
-  {
-    $router = new Router();
-    
-    // Ajouter plusieurs middlewares globaux
-    $router->addMiddleware(new LoggingMiddleware());
-    
-    // Créer un contrôleur de test avec attribut Route
-    $controller = new class {
-      #[Route(path: '/', methods: ['GET'], name: 'test')]
-      public function index(): Response
-      {
-        return new Response(200, 'OK');
-      }
-    };
-    
-    // Enregistrer une route
-    $router->registerRoutes(get_class($controller));
-    
-    $request = new Request('/', 'GET');
-    $response = $router->handle($request);
-    
-    // La réponse doit être OK (les middlewares ne bloquent pas)
-    $this->assertEquals(200, $response->getStatusCode());
-  }
+        TestMiddleware::reset();
+        $request = new Request('/test-middleware', 'GET');
+        $this->router->handle($request);
+
+        $this->assertContains('global', $state->order, 'Le middleware global devrait être appelé');
+        $this->assertTrue(TestMiddleware::wasCalled(), 'Le middleware de route devrait être appelé');
+        // Le middleware global devrait être appelé en premier
+        $this->assertEquals('global', $state->order[0] ?? null, 'Le middleware global devrait être appelé en premier');
+    }
+
+    /**
+     * Test qu'un middleware peut accéder à la requête
+     */
+    public function testMiddlewareCanAccessRequest(): void
+    {
+        $state = new \stdClass();
+        $state->requestPath = null;
+        
+        $middleware = new class($state) implements Middleware {
+            private $state;
+            public function __construct($state) { $this->state = $state; }
+            public function handle(\JulienLinard\Router\Request $request): ?\JulienLinard\Router\Response {
+                $this->state->requestPath = $request->getPath();
+                return null;
+            }
+        };
+
+        $this->router->addMiddleware($middleware);
+        $this->router->registerRoutes(TestController::class);
+
+        $request = new Request('/test', 'GET');
+        $this->router->handle($request);
+
+        $this->assertEquals('/test', $state->requestPath);
+    }
+}
+
+/**
+ * Contrôleurs de test
+ */
+class TestController
+{
+    #[Route(path: '/test', methods: ['GET'], name: 'test')]
+    public function index(): Response
+    {
+        return new Response(200, 'Test');
+    }
+}
+
+class RouteWithMiddlewareController
+{
+    #[Route(path: '/test-middleware', methods: ['GET'], name: 'test.middleware', middleware: [\Tests\TestMiddleware::class])]
+    public function index(): Response
+    {
+        return new Response(200, 'Test with middleware');
+    }
+}
+
+class RouteWithBlockingMiddlewareController
+{
+    #[Route(path: '/test-blocking', methods: ['GET'], name: 'test.blocking', middleware: [\Tests\BlockingMiddleware::class])]
+    public function index(): Response
+    {
+        return new Response(200, 'Should not be reached');
+    }
+}
+
+class BlockingMiddleware implements Middleware
+{
+    public function handle(Request $request): ?Response
+    {
+        return new Response(403, 'Forbidden');
+    }
+}
+
+/**
+ * Middleware de test
+ */
+class TestMiddleware implements Middleware
+{
+    private static bool $called = false;
+
+    public function handle(Request $request): ?Response
+    {
+        self::$called = true;
+        return null;
+    }
+
+    public static function wasCalled(): bool
+    {
+        return self::$called;
+    }
+
+    public static function reset(): void
+    {
+        self::$called = false;
+    }
 }

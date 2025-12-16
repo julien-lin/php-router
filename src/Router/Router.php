@@ -56,6 +56,13 @@ class Router
    * Structure : ['/user/{id}' => ['pattern' => regex, 'params' => ['id']]]
    */
   private array $compilationCache = [];
+  
+  /**
+   * Cache du tri des routes dynamiques
+   * Structure : Tableau trié des routes dynamiques (par spécificité)
+   * Null si le cache doit être régénéré
+   */
+  private ?array $sortedDynamicRoutesCache = null;
 
   /**
    * Définit le container d'injection de dépendances
@@ -147,6 +154,8 @@ class Router
                 
                 $dynamicRouteIndex = $index;
                 $found = true;
+                // Note: Pas besoin d'invalider le cache ici car on ajoute juste une méthode HTTP
+                // à une route existante, le tri reste le même
                 break;
               }
             }
@@ -171,6 +180,9 @@ class Router
               
               // Ajouter à l'index par path pour accès O(1)
               $this->dynamicRoutesByPath[$path] = $dynamicRouteIndex;
+              
+              // ✅ PHASE 2.1: Invalider le cache du tri lors de l'ajout d'une nouvelle route dynamique
+              $this->invalidateSortedRoutesCache();
             }
             
             // Ajouter à l'index inversé pour recherche rapide par nom (O(1))
@@ -361,12 +373,26 @@ class Router
         $paramName = $param->getName();
         $paramType = $param->getType();
         
-        // Si le paramètre est de type Request, passer l'objet Request
-        if ($paramType instanceof \ReflectionNamedType && $paramType->getName() === Request::class) {
+        // Si le paramètre est de type Request ou une union type contenant Request, passer l'objet Request
+        $isRequestType = false;
+        if ($paramType instanceof \ReflectionNamedType) {
+          $isRequestType = $paramType->getName() === Request::class;
+        } elseif ($paramType instanceof \ReflectionUnionType) {
+          // Vérifier si l'union type contient Request
+          foreach ($paramType->getTypes() as $type) {
+            if ($type instanceof \ReflectionNamedType && $type->getName() === Request::class) {
+              $isRequestType = true;
+              break;
+            }
+          }
+        }
+        
+        if ($isRequestType) {
           $args[] = $request;
+          continue; // Passer au paramètre suivant
         }
         // Si c'est un paramètre de route, le récupérer depuis routeParams
-        elseif (isset($routeParams[$paramName])) {
+        if (isset($routeParams[$paramName])) {
           $value = $routeParams[$paramName];
           
           // Convertir le type si nécessaire
@@ -702,10 +728,17 @@ class Router
    * Retourne les routes dynamiques triées par spécificité (plus de paramètres = plus spécifique)
    * Cette optimisation améliore les performances en testant d'abord les routes les plus spécifiques
    * 
+   * Le résultat est mis en cache et régénéré uniquement lors de l'ajout de nouvelles routes.
+   * 
    * @return array Routes dynamiques triées
    */
   private function getSortedDynamicRoutes(): array
   {
+    // ✅ PHASE 2.1: Utiliser le cache s'il existe
+    if ($this->sortedDynamicRoutesCache !== null) {
+      return $this->sortedDynamicRoutesCache;
+    }
+    
     // Créer une copie pour ne pas modifier l'original
     $sorted = $this->dynamicRoutes;
     
@@ -723,7 +756,21 @@ class Router
       return strlen($b['path']) <=> strlen($a['path']);
     });
     
+    // ✅ PHASE 2.1: Mettre en cache le résultat
+    $this->sortedDynamicRoutesCache = $sorted;
+    
     return $sorted;
+  }
+  
+  /**
+   * Invalide le cache du tri des routes dynamiques
+   * Appelé automatiquement lors de l'ajout de nouvelles routes
+   * 
+   * ✅ PHASE 2.1: Optimisation du tri avec cache
+   */
+  private function invalidateSortedRoutesCache(): void
+  {
+    $this->sortedDynamicRoutesCache = null;
   }
 
   /**
