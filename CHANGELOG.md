@@ -5,6 +5,99 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.4.4] - 2025-01-15
+
+### ⚡ Optimisation Performance (Phase 2.1)
+
+- **Cache du tri des routes dynamiques** : Optimisation majeure pour améliorer les performances
+  - Ajout d'un cache pour le tri des routes dynamiques (`sortedDynamicRoutesCache`)
+  - Le tri n'est effectué qu'une seule fois et réutilisé pour toutes les requêtes suivantes
+  - Invalidation automatique du cache lors de l'ajout de nouvelles routes dynamiques
+  - Nouvelle méthode privée `invalidateSortedRoutesCache()` pour gérer l'invalidation
+  - Modification de `getSortedDynamicRoutes()` pour utiliser le cache
+
+**Bénéfices** :
+- Réduction du temps de matching pour les routes dynamiques
+- Performance améliorée pour les applications avec beaucoup de routes
+- Le tri n'est plus effectué à chaque requête, seulement lors de l'ajout de routes
+
+**Tests** :
+- Nouveau fichier `SortedRoutesCacheTest.php` : 6 tests (21 assertions)
+  - Test de création du cache lors du premier appel
+  - Test de réutilisation du cache lors des appels suivants
+  - Test d'invalidation lors de l'ajout d'une nouvelle route
+  - Test de régénération après invalidation
+  - Test de correction du tri avec le cache
+  - Test de performance améliorée
+
+## [1.4.3] - 2025-01-15
+
+### 📚 Documentation Technique (Phase 1.2)
+
+- **Documentation complète** : Création de 4 fichiers de documentation technique
+  - `DOCUMENTATION/ARCHITECTURE.md` : Architecture détaillée du routeur
+    - Composants principaux (Router, Request, Response, Route Attribute, Middleware)
+    - Flux d'exécution complet
+    - Optimisations implémentées
+    - Groupes de routes
+    - Injection de dépendances
+    - Gestion des erreurs et sécurité
+  - `DOCUMENTATION/ROUTES.md` : Guide complet pour définir des routes
+    - Utilisation des attributs PHP 8
+    - Routes statiques et dynamiques
+    - Paramètres et contraintes
+    - Injection de Request et paramètres de route
+    - Groupes de routes
+    - Génération d'URL
+    - Exemples complets (CRUD, contraintes)
+  - `DOCUMENTATION/MIDDLEWARES.md` : Guide complet pour les middlewares
+    - Interface Middleware
+    - Types de middlewares (globaux, groupe, route)
+    - Middlewares intégrés (Auth, Role, Permission, CORS, Logging)
+    - Création de middlewares personnalisés
+    - Injection de dépendances
+    - Bonnes pratiques et tests
+  - `DOCUMENTATION/PERFORMANCE.md` : Optimisations et performance
+    - Optimisations implémentées (séparation statique/dynamique, cache, tri)
+    - Performances mesurées
+    - Recommandations d'optimisation
+    - Optimisations futures (Phase 2.1 : cache du tri)
+    - Benchmarks et profiling
+
+## [1.4.2] - 2025-01-15
+
+### 🧪 Tests Supplémentaires (Phase 1.1)
+
+- **Augmentation de la couverture de tests** : Passage de 48 à 73 tests (782 assertions)
+  - Nouveau fichier `RouteGroupTest.php` : 9 tests pour les groupes de routes
+    - Test du préfixe appliqué aux routes
+    - Test des middlewares de groupe
+    - Test des middlewares bloquants
+    - Test des groupes imbriqués
+    - Test de la génération d'URL avec groupes
+  - Nouveau fichier `UrlGenerationTest.php` : 13 tests pour la génération d'URL
+    - Tests pour routes statiques et dynamiques
+    - Tests avec query parameters
+    - Tests avec valeurs encodées et caractères spéciaux
+    - Tests avec groupes et groupes imbriqués
+  - Nouveau fichier `MiddlewareTest.php` : 7 tests pour les middlewares
+    - Tests pour middlewares globaux
+    - Tests pour middlewares de route
+    - Tests d'ordre d'exécution
+    - Tests de blocage d'exécution
+  - Nouveau fichier `PerformanceTest.php` : 4 tests de performance
+    - Test avec beaucoup de routes statiques (100 routes)
+    - Test avec beaucoup de routes dynamiques (100 routes)
+    - Test de génération d'URL (200 routes, 500 générations)
+    - Test de tri des routes dynamiques (50 routes)
+
+### 🔧 Amélioré
+
+- **phpunit.xml** : Suppression des attributs dépréciés pour PHPUnit 11.5
+  - Suppression de `beStrictAboutTodoAnnotatedTests`
+  - Suppression de `convertDeprecationsToExceptions`
+  - Suppression de `verbose`
+
 ## [1.4.0] - 2025-11-29
 
 ### ✨ Ajouté
